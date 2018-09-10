@@ -106,9 +106,9 @@ def matchOnIoU(pie, dt, gt):
     # Detection matched to
     #for i in range(num_detected_boxes):
         #print "Dt", scores[i], "GT", max_overlap_gt_ids[i], "", tp_fp_labels[i]
-    print "Dt", dt['detection_scores'], "ID", dt['person_id']
-    for i in range(num_groundtruth_boxes):
-        print "GT", i, bool(is_gt_box_detected[i])
+    #print "Dt", dt['detection_scores'], "ID", dt['person_id']
+    #for i in range(num_groundtruth_boxes):
+    #    print "GT", i, bool(is_gt_box_detected[i])
     # convert detected boxlist to dict
     # Assign ID, return dt and tp_fp_labels
 
