@@ -113,4 +113,4 @@ def matchOnIoU(pie, dt, gt):
     # Assign ID, return dt and tp_fp_labels
 
     #return scores, max_overlap_gt_ids, tp_fp_labels, is_gt_box_detected
-    return dt
+    return dt, np.sum(~is_gt_box_detected)
