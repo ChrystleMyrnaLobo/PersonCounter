@@ -36,11 +36,16 @@ class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
 
 
 ########################################################################################################################################
-def boxlist_to_dict(detection_boxlist):
+def boxlist_to_dict(detection_boxlist, useGT):
     dt = {}
-    dt['detection_boxes'] = np.array( detection_boxlist.get(), dtype="float32" )
-    dt['detection_scores'] = np.array( detection_boxlist.get_field('scores'), dtype="float32" )
-    dt['num_detections'] = np.shape(dt['detection_scores'])[0]
+    if useGT:
+        dt['groundtruth_boxes'] = np.array( detection_boxlist.get(), dtype="float32" )
+        dt['groundtruth_scores'] = np.array( detection_boxlist.get_field('scores'), dtype="float32" )
+        dt['num_detections'] = np.shape(dt['groundtruth_scores'])[0]
+    else:
+        dt['detection_boxes'] = np.array( detection_boxlist.get(), dtype="float32" )
+        dt['detection_scores'] = np.array( detection_boxlist.get_field('scores'), dtype="float32" )
+        dt['num_detections'] = np.shape(dt['detection_scores'])[0]
     return dt
 
 """
@@ -60,10 +65,15 @@ def boxlist_to_dict(detection_boxlist):
       is_gt_box_detected: Indicates if a ground truth box is detected
 """
 # Return sorted detection dict with corrresponsing ID from gt or NULL
-def matchOnIoU(pie, dt, gt):
-    detected_boxes = dt['detection_boxes']
-    detected_scores = dt['detection_scores']
-    groundtruth_boxes = gt['detection_boxes']
+def matchOnIoU(pie, dt, gt, useGT):
+    if useGT:
+        detected_boxes = dt['groundtruth_boxes']
+        detected_scores = dt['groundtruth_scores']
+        groundtruth_boxes = gt['groundtruth_boxes']
+    else:
+        detected_boxes = dt['detection_boxes']
+        detected_scores = dt['detection_scores']
+        groundtruth_boxes = gt['detection_boxes']
 
     # Default value false
     num_groundtruth_boxes = np.shape(groundtruth_boxes)[0]
@@ -78,7 +88,7 @@ def matchOnIoU(pie, dt, gt):
                groundtruth_is_group_of_list=groundtruth_is_group_of_list)
 
     # Restore dt
-    dt = boxlist_to_dict(detection_boxlist)
+    dt = boxlist_to_dict(detection_boxlist, useGT)
     dt['person_id'] = np.full( num_detected_boxes, -1)
 
     # If no GT value then all detection are false positive

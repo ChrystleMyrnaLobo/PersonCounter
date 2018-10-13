@@ -1,4 +1,4 @@
-# Basic Person Counter
+        # Basic Person Counter
 Keep track of people entering and leaving the frame
 
 ### Data set
@@ -16,9 +16,11 @@ MOT16
 
 PersonCounter
  /Output
-   /ModelA
-        prediction                 // Pickle file of groundtruth and prediction
-        /Image                     // Folder of images with GT and/or predicted BB
-        evaluate                   // Results of evalute in a csv file
+   /ModelA_dataset
+        filtered_prediction                 // Pickle file of prediction only for person class
+        dt_IoUB
+                /Image                  // Folder of images with GT and/or predicted BB
+                dt.csv                  // Detection per frame per file as per MOT format
+		summary.csv		// Per frame count of person entering and leaving frame 
  person_counter.ipynb
 ```
