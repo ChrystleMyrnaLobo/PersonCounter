@@ -15,13 +15,14 @@ class ODModel:
         self.model_name = ALL_MODEL[model_idx]
         self.od_dir = os.path.join(os.pardir, 'obj_det')
         self.num_classes = 90
-        #self.loadCategoryIndex()
+        self.loadCategoryIndex()
 
     def str(self):
         txt = self.model_name
         return txt
 
     def loadCategoryIndex(self):
+        """ Model is trained to classify these class """
         # List of the strings that is used to add correct label for each box.
         path_to_labels = os.path.join('data', 'mscoco_label_map.pbtxt')
         path_to_labels = os.path.join(self.od_dir, path_to_labels)
@@ -29,7 +30,7 @@ class ODModel:
         # Label maps map indices to category names, so that when our convolution network predicts `5`,
         # we know that this corresponds to `airplane`. Here we use internal utility functions,
         # but anything that returns a dictionary mapping integers to appropriate string labels would be fine
-        #  str(self.category_index[1]['name']) 
+        #  str(self.category_index[1]['name'])
         label_map = label_map_util.load_labelmap(path_to_labels)
         categories = label_map_util.convert_label_map_to_categories(label_map, max_num_classes=self.num_classes, use_display_name=True)
         self.category_index = label_map_util.create_category_index(categories)

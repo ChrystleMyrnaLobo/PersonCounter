@@ -11,8 +11,9 @@ def main():
     args = parser.parse_args()
     bpc = basic_person_counter.BasicPersonCounter(args.useGT, args.video, args.model, args.iou)
     print bpc.str()
-    bpc.reset_env()
     #bpc.assign_id()
+    bpc.visualize_groundtruth()
+    print "Done"
 
 if __name__ == "__main__":
     main()

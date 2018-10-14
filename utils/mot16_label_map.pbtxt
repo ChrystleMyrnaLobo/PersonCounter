@@ -1,0 +1,48 @@
+item {
+    id: 1
+    name: 'Pedestrian'
+}
+item {
+    id: 2
+    name: 'Person on vehicle'
+}
+item {
+    id: 3
+    name: 'Car'
+}
+item {
+    id: 4
+    name: 'Bicycle'
+}
+item {
+    id: 5
+    name: 'Motorbike'
+}
+item {
+    id: 6
+    name: 'Non motorized vehicle'
+}
+item {
+    id: 7
+    name: 'Static person'
+}
+item {
+    id: 8
+    name: 'Distractor'
+}
+item {
+    id: 9
+    name: 'Occluder'
+}
+item {
+    id: 10
+    name: 'Occluder on the ground'
+}
+item {
+    id: 11
+    name: 'Occluder full'
+}
+item {
+    id: 12
+    name: 'Reflection'
+}
