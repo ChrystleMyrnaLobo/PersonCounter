@@ -21,7 +21,7 @@ class VisualizeImage:
         txt += " Output directory", self.path_to_output_dir
         return txt
 
-    def draw_BB(self, image_np, bbs, categories, scores, score_thr=0.3, line_thick=8):
+    def draw_BB(self, image_np, bbs, categories, scores, score_thr=0.3, line_thick=3):
         """ Draw detection BB for given image """
         vis_util.visualize_boxes_and_labels_on_image_array(
             image_np,

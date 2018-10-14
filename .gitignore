@@ -2,3 +2,4 @@
 Output
 *.ipynb
 *.pyc
+*.log

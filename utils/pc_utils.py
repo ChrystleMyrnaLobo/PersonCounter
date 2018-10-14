@@ -55,7 +55,7 @@ class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
           tp_fp_labels: a boolean numpy array indicating whether a detection is a true positive.
           is_gt_box_detected: Indicates if a ground truth box is detected
     """
-    def match_frames_on_iou(self, dt_dict, groundtruth_boxes, groundtruth_person_id):
+    def match_frames_on_iou(self, dt_dict, groundtruth_boxes, groundtruth_classes):
         # Return sorted detection dict with corrresponsing ID from gt or NULL
         detected_boxes = dt_dict['detection_boxes']
         detected_scores = dt_dict['detection_scores']
@@ -74,7 +74,7 @@ class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
 
         # Restore dt
         dt_dict = self.boxlist_to_dict(detection_boxlist)
-        dt_dict['person_id'] = np.full( num_detected_boxes, -1)
+        dt_dict['detection_classes'] = np.full(num_detected_boxes, -1)
 
         # If no GT value then all detection are false positive
         if groundtruth_boxes.size == 0:
@@ -94,16 +94,17 @@ class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
                 gt_id = max_overlap_gt_ids[i]
                 if iou[i, gt_id] >= self.matching_iou_threshold and not is_gt_box_detected[gt_id]:
                     # assign the person id
-                    dt_dict['person_id'][i] = groundtruth_person_id[gt_id] # gt['person_id'][gt_id]
+                    dt_dict['detection_classes'][i] = groundtruth_classes[gt_id] # gt['detection_classes'][gt_id]
                     tp_fp_labels[i] = True
                     is_gt_box_detected[gt_id] = True
+                # else:
+                #     print "not match",  iou[i, gt_id], groundtruth_classes[gt_id]
 
         # Detection matched to
-        #for i in range(num_detected_boxes):
-            #print "Dt", scores[i], "GT", max_overlap_gt_ids[i], "", tp_fp_labels[i]
-        #print "Dt", dt_dict['detection_scores'], "ID", dt_dict['person_id']
-        #for i in range(num_groundtruth_boxes):
-        #    print "GT", i, bool(is_gt_box_detected[i])
+        # for i in range(num_detected_boxes):
+        #     print "Dt", dt_dict['detection_boxes'][i], "GT", max_overlap_gt_ids[i], "", tp_fp_labels[i]
+        # print "Dt", dt_dict['detection_scores'], "ID", dt_dict['detection_classes']
+        # print "GT", groundtruth_boxes[~is_gt_box_detected]
         # convert detected boxlist to dict
         # Assign ID, return dt and tp_fp_labels
 

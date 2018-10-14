@@ -100,7 +100,7 @@ class MOT16:
         gt_ds = {} # groundtruth for all images in dataset
         #person_cnt, person_id = 0, 1
         with open(self.path_to_annotation_dir, 'rb') as csvfile:
-            print "Reading ground groundtruth from " + self.path_to_annotation_dir + " as detection " + asDetection
+            print "Reading ground groundtruth from " + self.path_to_annotation_dir + " as detection " + str(asDetection)
             reader = csv.reader(csvfile, delimiter=',')
             for row in reader:
                 gt_dict = {}
@@ -144,7 +144,7 @@ class MOT16:
         for i in range(0,dt_dict['num_detections']):
             row = []
             row.append(image_id) # frame id
-            row.append(dt_dict['person_id'][i]) # ID
+            row.append(dt_dict['detection_classes'][i]) # ID
             gt_bb = self.bb_od_to_mot(dt_dict['detection_boxes'][i])
             row.extend( gt_bb )
             rows.append(row)

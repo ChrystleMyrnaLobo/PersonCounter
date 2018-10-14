@@ -20,6 +20,7 @@ Output
 PersonCounter
 /Output
    /ModelA_dataset
+        prediction                      // Pickle file of prediction of all classes
         filtered_prediction             // Pickle file of prediction only for person class
         dt_IoUx
                 /Image                  // Folder of images with GT and/or predicted BB
