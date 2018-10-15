@@ -1,7 +1,7 @@
 import os
 import csv
 import numpy as np
-from object_detection.utils import label_map_util
+from utils.od_utils import *
 
 class MOT16:
     """ Notes on the MOT16 dataset:
@@ -31,21 +31,8 @@ class MOT16:
         # Dataset categories
         self.od_dir = os.path.join(os.pardir, 'obj_det')
         self.num_classes = 12
-        self.loadCategoryIndex()
-
-    def loadCategoryIndex(self):
-        """ Dataset is annotated on these category """
-        # List of the strings that is used to add correct label for each box.
-        path_to_labels = os.path.join('data', 'mot16_label_map.pbtxt')
-        path_to_labels = os.path.join(self.od_dir, path_to_labels)
-
-        # Label maps map indices to category names, so that when our convolution network predicts `5`,
-        # we know that this corresponds to `airplane`. Here we use internal utility functions,
-        # but anything that returns a dictionary mapping integers to appropriate string labels would be fine
-        #  str(self.category_index[1]['name'])
-        label_map = label_map_util.load_labelmap(path_to_labels)
-        categories = label_map_util.convert_label_map_to_categories(label_map, max_num_classes=self.num_classes, use_display_name=True)
-        self.category_index = label_map_util.create_category_index(categories)
+        #self.loadCategoryIndex()
+        self.category_index = load_category_index('mot16_label_map.pbtxt', self.num_classes) # Dataset has these categories
 
     def str(self):
         txt = "class MOT16\n"
@@ -62,8 +49,8 @@ class MOT16:
             meta = fd.read()
             idx = meta.find('seqLength')
             meta[idx+10:idx+13]
-        return 3
-        #return int( meta[idx+10:idx+13] )
+        #return 3
+        return int( meta[idx+10:idx+13] )
 
     def mot_to_od(self, row):
         """ Convert MOT16 record format to OD api format"""
@@ -100,7 +87,7 @@ class MOT16:
         gt_ds = {} # groundtruth for all images in dataset
         #person_cnt, person_id = 0, 1
         with open(self.path_to_annotation_dir, 'rb') as csvfile:
-            print "Reading ground groundtruth from " + self.path_to_annotation_dir + " as detection " + str(asDetection)
+            #print "Reading ground groundtruth from " + self.path_to_annotation_dir + " as detection " + str(asDetection)
             reader = csv.reader(csvfile, delimiter=',')
             for row in reader:
                 gt_dict = {}

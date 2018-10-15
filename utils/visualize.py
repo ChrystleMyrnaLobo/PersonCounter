@@ -61,7 +61,7 @@ class VisualizeImage:
         self.saveImage(image_np, image_name)
 
     def draw_all_images(self, ev_data, isGT):
-        print "Draw BB and save to " + self.path_to_output_dir
+        #print "Draw BB and save to " + self.path_to_output_dir
         for image_name in os.listdir(self.path_to_image_dir):
             try:
                 # image_id : filename without extension # image_name is 000102.jpg

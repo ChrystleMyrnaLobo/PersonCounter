@@ -1,8 +1,9 @@
 import os
 import csv
+import numpy as np
+import pickle
 from utils.dataset import MOT16
 from utils.model import ODModel
-import numpy as np
 from utils.pc_utils import pc_PerImageEvaluation
 from utils.visualize import VisualizeImage
 
@@ -86,8 +87,15 @@ class BasicPersonCounter:
         if self.useGT:
             ev_data = self.ds.parseGroundtruth(asDetection=True)
         else:
+            print "Read from ", self.path_to_filtered_pkl
             with open(self.path_to_filtered_pkl,'rb') as fd:
                 ev_data = pickle.load(fd)
+            #     # load only image count value
+            #     ev = {}
+            #     for frame_id in range(1,self.ds.image_count+1): # Upto last but one
+            #         image_id = str(frame_id).zfill(6)
+            #         ev[image_id] = ev_data[image_id]
+            # ev_data = ev
 
         # Init per image evaluation
         num_groundtruth_classes = 1
@@ -149,8 +157,9 @@ class BasicPersonCounter:
             image_id = str(frame_id).zfill(6)
             cur_dict = ev_data[image_id] # Current frame is detection, previous frame is groundtruth
             cur_dict = self.two_frame_reid(pie, cur_dict, prev_dict)
-            #ev_data[image_id] = cur_dict
+            ev_data[image_id] = cur_dict
             self.save_frame(image_id, cur_dict)
             # for the next iteration
             prev_dict = cur_dict
-        #self.visualize_reid(ev_data)
+        # Save the updated ev
+        self.visualize_reid(ev_data)
