@@ -1,8 +1,8 @@
-# Basic Person Counter
-Keep track of people entering and leaving the frame using IoU for data association
+# Person Counter
+Keep track of people entering and leaving the frame using IoU for data association - naive approach
 
 ### Data set
-MOT16 dataset obtained from [website] [paper]
+MOT16 dataset obtained from [website] and [paper]
 
 ### Directory Structure
 Dataset
