@@ -57,15 +57,10 @@ class MOT16:
         [frame_id, person_id, xmin, ymin, width, height, conf, class_idx, visibility] = row
         gt_bb = []
         # Extract as per MOT16
-        #ymin = float(row[3])
-        #xmin = float(row[2])
-        ymax = float(ymin) + float(height)
-        xmax = float(xmin) + float(width)
+        ymax = float(ymin) + float(height) # ymax # bb_top + bb_height
+        xmax = float(xmin) + float(width) # xmax # bb_left + bb_width
         # Insert as per OD
-        gt_bb.append( ymin ) # ymin # bb_top
-        gt_bb.append( xmin ) # xmin # bb_left
-        gt_bb.append( ymax ) # ymax # bb_top + bb_height
-        gt_bb.append( xmax ) # xmax # bb_left + bb_width
+        gt_bb = [ymin, xmin, ymax, xmax]
         gt_bb = map(float, gt_bb)
         return int(frame_id), int(person_id), gt_bb, bool(int(conf)), int(class_idx)
 
@@ -73,12 +68,9 @@ class MOT16:
         """ Convert BB from OD format to MOT16 format"""
         row = []
         [ymin, xmin, ymax, xmax] = detection_box
-        width = float(xmax) - float(xmin)
-        height = float(ymax) - float(ymin)
-        row.append(xmin) # bb_left #xmin
-        row.append(ymin) # bb_top # ymin
-        row.append(width) # bb_width # x_max - xmin
-        row.append(height) # bb_height # ymax - ymin
+        width = float(xmax) - float(xmin) # bb_width # x_max - xmin
+        height = float(ymax) - float(ymin) # bb_height # ymax - ymin
+        row = [xmin, ymin, width, height]
         row = map(float, row)
         return row
 

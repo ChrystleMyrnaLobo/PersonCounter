@@ -87,7 +87,6 @@ class BasicPersonCounter:
         if self.useGT:
             ev_data = self.ds.parseGroundtruth(asDetection=True)
         else:
-            print "Read from ", self.path_to_filtered_pkl
             with open(self.path_to_filtered_pkl,'rb') as fd:
                 ev_data = pickle.load(fd)
             #     # load only image count value
@@ -162,4 +161,4 @@ class BasicPersonCounter:
             # for the next iteration
             prev_dict = cur_dict
         # Save the updated ev
-        self.visualize_reid(ev_data)
+        #self.visualize_reid(ev_data)
