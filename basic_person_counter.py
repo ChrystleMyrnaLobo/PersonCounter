@@ -8,13 +8,14 @@ from utils.pc_utils import pc_PerImageEvaluation
 from utils.visualize import VisualizeImage
 
 class BasicPersonCounter:
-    def __init__(self, useGT, v_id, m_idx, iou):
+    def __init__(self, useGT, v_id, m_idx, iou, stepSize):
         self.ds = MOT16(v_id)
         self.model = ODModel(1)
         self.iou_thr = iou
         self.useGT = useGT
         self.person_counter = 0
         self.pc_label = {}
+        self.stepSize = stepSize
 
         # Output/Model_MOT16_01
         self.path_to_output_dir = os.path.join('Output', self.model.model_name + '_' + self.ds.dataset_name + '-' + self.ds.video_seq)
@@ -152,7 +153,7 @@ class BasicPersonCounter:
     def assign_id(self):
         """ Traverse all detection per frame and make data association via IoU """
         ev_data, pie, prev_dict = self.reset_env()
-        for frame_id in range(2,self.ds.image_count+1): # Upto last but one
+        for frame_id in range(1+self.stepSize, self.ds.image_count+1, self.stepSize): # Upto last but one
             image_id = str(frame_id).zfill(6)
             cur_dict = ev_data[image_id] # Current frame is detection, previous frame is groundtruth
             cur_dict = self.two_frame_reid(pie, cur_dict, prev_dict)
