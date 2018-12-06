@@ -6,9 +6,14 @@ from utils.dataset import MOT16
 from utils.model import ODModel
 from utils.pc_utils import pc_PerImageEvaluation
 from utils.visualize import VisualizeImage
+import logging
+from logging.config import fileConfig
+fileConfig('logging_config.ini')
+logger = logging.getLogger()
 
 class BasicPersonCounter:
     def __init__(self, useGT, v_id, m_idx, iou, stepSize):
+        logger.info("Running basic person counter")
         self.ds = MOT16(v_id)
         self.model = ODModel(1)
         self.iou_thr = iou

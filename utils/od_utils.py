@@ -1,5 +1,7 @@
 import os
 import numpy as np
+import sys
+sys.path.append('../models/research/')
 from object_detection.utils import label_map_util
 # common utitlity of object detection api
 
