@@ -1,5 +1,5 @@
 # Person Counter
-Keep track of people entering and leaving the frame using IoU for data association - naive approachCount the total people present in the video (sequence of images). For a given frame `t`,
+Count the total people present in the video (sequence of images). For a given frame `t`,
 - count of people in current frame `cnt`
 - count of people not present wrt previous frame `cnt_entry`
 - count people present `cnt_exit`
@@ -13,9 +13,9 @@ MOT16 dataset obtained from [website] and [paper]
 - Follow `misc/readme`
 
 ### Approach 1 : Position based (IoU)
-For a basic person counter, use IoU as data association of detections between two frames.
-Use groundtruth `python person_counter.py --video 10 --iou 0.3  stepSize 1 --useGT`
-Use detection `python person_counter.py --video 10 --iou 0.3  stepSize 1  --model 2`
+For data association between two frames, use IoU of bb  
+Use groundtruth bb `python person_counter.py --video 10 --iou 0.3  stepSize 1 --useGT`  
+Use detection bb `python person_counter.py --video 10 --iou 0.3  stepSize 1  --model 2`  
 where
 - `video` : video number of MOT16 dataset
 - `iou` : IoU threshold for matching
