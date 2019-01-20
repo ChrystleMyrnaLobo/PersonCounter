@@ -45,7 +45,7 @@ class MOT16:
     def getImageCount(self):
         # Read seqinfo.ini to get seqLength=654
         path_info_file = os.path.join(self.path_to_dataset_dir, 'seqinfo.ini')
-        with open(path_info_file,'rb') as fd:
+        with open(path_info_file,'r') as fd:
             meta = fd.read()
             idx = meta.find('seqLength')
             meta[idx+10:idx+13]
@@ -61,7 +61,19 @@ class MOT16:
         xmax = float(xmin) + float(width) # xmax # bb_left + bb_width
         # Insert as per OD
         gt_bb = [ymin, xmin, ymax, xmax]
-        gt_bb = map(float, gt_bb)
+        gt_bb = [float(i) for i in gt_bb] #map(float, gt_bb)
+        return int(frame_id), int(person_id), gt_bb, bool(int(conf)), int(class_idx)
+
+    def mot_to_opencv(self, row):
+        """ Convert MOT16 record format to OpenCV api format"""
+        [frame_id, person_id, xmin, ymin, width, height, conf, class_idx, visibility] = row
+        # Need to scale
+        # video w x h = 960 x 540
+        # image w x h = 1920 x 1080
+        scale_x = 960.0 / 1920.0
+        scale_y = 540.0 / 1080.0
+        gt_bb = [scale_x * float(xmin), scale_y * float(ymin), scale_x * float(width), scale_y * float(height)]
+        # gt_bb = [float(i) for i in gt_bb]
         return int(frame_id), int(person_id), gt_bb, bool(int(conf)), int(class_idx)
 
     def bb_od_to_mot(self, detection_box):
@@ -74,16 +86,19 @@ class MOT16:
         row = map(float, row)
         return row
 
-    def parseGroundtruth(self, asDetection=False): #extractGT
+    def parseGroundtruth(self, asDetection=False, targetDS="OD"): #extractGT
         """" Read the groundtruth into a dictionary as per OD API format. Return as dt_dict if asDetection is true """
         gt_ds = {} # groundtruth for all images in dataset
         #person_cnt, person_id = 0, 1
-        with open(self.path_to_annotation_dir, 'rb') as csvfile:
+        with open(self.path_to_annotation_dir, 'r') as csvfile:
             #print "Reading ground groundtruth from " + self.path_to_annotation_dir + " as detection " + str(asDetection)
             reader = csv.reader(csvfile, delimiter=',')
             for row in reader:
                 gt_dict = {}
-                frame_id, person_id, gt_bb, conf, class_idx = self.mot_to_od(row)
+                if targetDS == "OpenCV":
+                    frame_id, person_id, gt_bb, conf, class_idx = self.mot_to_opencv(row)
+                else:
+                    frame_id, person_id, gt_bb, conf, class_idx = self.mot_to_od(row)
                 #Ignore cases
                 if not conf or frame_id > self.image_count:
                     # Read only till image_count frames

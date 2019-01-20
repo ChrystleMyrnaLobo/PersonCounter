@@ -23,6 +23,15 @@ where
 - `useGT`: use groundtruth boundary box (only for MOT16 train videos)
 - `model` : model to be used for object detection
 
+### Approach 2 : Detect and track (OpenCV)
+Perform detection perodically and track onwards [multiple object tracker]
+Use groundtruth bb `python tracker_person_counter.py --video 10 --tracker csrt `  
+where
+- `video` : path to video
+- `tracker` : Choose from csrt, kcf, boosting, mil, tld, medianflow, mosse
+- `processfr` : frame processing rate (skips intermediate frames)
+- `detectfr`: frame rate for detection rest of the frames are tracked
+
 ### Directory Structure
 Dataset
 ```
@@ -49,3 +58,4 @@ PersonCounter
 
 [website]: https://motchallenge.net/data/MOT16/
 [paper]: https://arxiv.org/pdf/1603.00831.pdf
+[multiple object tracker]: https://www.pyimagesearch.com/2018/08/06/tracking-multiple-objects-with-opencv/

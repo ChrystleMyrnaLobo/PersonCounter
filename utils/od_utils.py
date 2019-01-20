@@ -1,12 +1,13 @@
 import os
 import numpy as np
 import sys
-sys.path.append('../models/research/')
+# sys.path.append('../models/research/')
 from object_detection.utils import label_map_util
 # common utitlity of object detection api
 
 def load_category_index(file_label_map, num_classes):
     """ Dataset is annotated on these category """
+    # Path to models/research/object_detection
     od_dir = os.path.join(os.pardir, 'obj_det')
     # List of the strings that is used to add correct label for each box.
     path_to_labels = os.path.join('data', file_label_map)
