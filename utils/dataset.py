@@ -2,6 +2,7 @@ import os
 import csv
 import numpy as np
 from utils.od_utils import *
+import configparser
 
 class MOT16:
     """ Notes on the MOT16 dataset:
@@ -16,41 +17,54 @@ class MOT16:
         confidence is flag indicating if the entry is to be considered (1) or ignored (0)
         class id is type of object annotated - pedestrian, person on vehicle, car, motorbike, static person
         visibility how much of that object is visible (0 to 1) due to occlusion or going out of frame
+
+        Directory structure of MOT16
+        MOT16/
+         train/
+            MOT16-xx/
+                det/det.txt
+                gt/gt.txt
+                img1.*.jpg
+                seqinfo.ini
     """
-    def __init__(self, video_id):
+    def __init__(self, home, video_id):
         self.dataset_name = "MOT16"
-        self.video_seq = str(video_id).zfill(2)
+        self.path_to_home = home #
+        self.video_name = 'MOT16-' + str(video_id).zfill(2)
         # Set path
         if video_id in [2,4,5,9,10,11,13]: # Train data
-            self.path_to_dataset_dir = os.path.join( os.pardir, self.dataset_name, 'train', 'MOT16-' + self.video_seq)
+            self.path_to_dataset_dir = os.path.join( self.path_to_home, 'train', self.video_name)
         else:
-            self.path_to_dataset_dir = os.path.join( os.pardir, self.dataset_name, 'test', 'MOT16-' + self.video_seq)
-        self.image_count = self.getImageCount()
+            self.path_to_dataset_dir = os.path.join( self.path_to_home, 'test', self.video_name)
+        # self.image_count = self.getImageCount()
+        self.parseINI()
         self.path_to_image_dir = os.path.join(self.path_to_dataset_dir, 'img1')
         self.path_to_annotation_dir = os.path.join(self.path_to_dataset_dir, 'gt', 'gt.txt')
         # Dataset categories
         self.od_dir = os.path.join(os.pardir, 'obj_det')
         self.num_classes = 12
-        #self.loadCategoryIndex()
         self.category_index = load_category_index('mot16_label_map.pbtxt', self.num_classes) # Dataset has these categories
+
+    def getVideoStream(self):
+        """ Image directory as "MOT16/train/MOT16-10/img1/%6d.jpg" """
+        return self.path_to_image_dir + "/%6d.jpg"
 
     def str(self):
         txt = "class MOT16\n"
+        txt += self.path_to_home + "\n"
         txt += self.path_to_dataset_dir + "\n"
         txt += self.path_to_annotation_dir + "\n"
         txt += self.path_to_image_dir + "\n"
         txt += str(self.image_count)
         return txt
 
-    def getImageCount(self):
-        # Read seqinfo.ini to get seqLength=654
-        path_info_file = os.path.join(self.path_to_dataset_dir, 'seqinfo.ini')
-        with open(path_info_file,'r') as fd:
-            meta = fd.read()
-            idx = meta.find('seqLength')
-            meta[idx+10:idx+13]
-        #return 3
-        return int( meta[idx+10:idx+13] )
+    def parseINI(self):
+        # Read seqinfo.ini
+        path_ini_file = os.path.join(self.path_to_dataset_dir, 'seqinfo.ini')
+        parser = configparser.ConfigParser()
+        parser.read(path_ini_file)
+        self.image_count = int( parser.get('Sequence', 'seqLength') )
+        self.frame_rate = int( parser.get('Sequence', 'frameRate') )
 
     def mot_to_od(self, row):
         """ Convert MOT16 record format to OD api format"""
@@ -65,13 +79,13 @@ class MOT16:
         return int(frame_id), int(person_id), gt_bb, bool(int(conf)), int(class_idx)
 
     def mot_to_opencv(self, row):
-        """ Convert MOT16 record format to OpenCV api format"""
+        """ Convert MOT16 record format to OpenCV tracker api format"""
         [frame_id, person_id, xmin, ymin, width, height, conf, class_idx, visibility] = row
         # Need to scale
         # video w x h = 960 x 540
         # image w x h = 1920 x 1080
-        scale_x = 960.0 / 1920.0
-        scale_y = 540.0 / 1080.0
+        scale_x = 1 #960.0 / 1920.0
+        scale_y = 1 #540.0 / 1080.0
         gt_bb = [scale_x * float(xmin), scale_y * float(ymin), scale_x * float(width), scale_y * float(height)]
         # gt_bb = [float(i) for i in gt_bb]
         return int(frame_id), int(person_id), gt_bb, bool(int(conf)), int(class_idx)

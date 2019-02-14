@@ -8,7 +8,7 @@ from object_detection.utils import per_image_evaluation
 # Override per image evaluation
 class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
     """Evaluate detection result of a single image.PerImageEvaluation"""
-    def __init__(self, num_groundtruth_classes, matching_iou_threshold=0.5, nms_iou_threshold=0.3, nms_max_output_boxes=50,           group_of_weight=0.0):
+    def __init__(self, num_groundtruth_classes, matching_iou_threshold=0.5, nms_iou_threshold=0.3, nms_max_output_boxes=50, group_of_weight=0.0):
         super(pc_PerImageEvaluation, self).__init__(num_groundtruth_classes, matching_iou_threshold, nms_iou_threshold, nms_max_output_boxes)
 
     def _get_overlaps_and_scores_box_mode(
@@ -39,23 +39,23 @@ class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
         dt_dict['num_detections'] = np.shape(dt_dict['detection_scores'])[0]
         return dt_dict
 
-    """
-        Given two frames, match the detection to groundtruth.
-        In decreasing sorted order, assign the GT if IoU > IoU threshold
-        Filter detection score < score threshold
-
-        Args:
-          detected_boxes: A numpy array of shape [N, 4] representing detected box coordinates
-          detected_scores: A 1-d numpy array of length N representing classification score
-          groundtruth_boxes: A numpy array of shape [M, 4] representing ground truth box coordinates
-
-        Returns:
-          scores: A numpy array representing the detection scores, sorted and filtered.
-          max_overlap_gt_ids: A numpy array indicating the detection's corresponding groundtruth box
-          tp_fp_labels: a boolean numpy array indicating whether a detection is a true positive.
-          is_gt_box_detected: Indicates if a ground truth box is detected
-    """
     def match_frames_on_iou(self, dt_dict, groundtruth_boxes, groundtruth_classes):
+        """
+            Given two frames, match the detection to groundtruth.
+            In decreasing sorted order, assign the GT if IoU > IoU threshold
+            Filter detection score < score threshold
+
+            Args:
+              detected_boxes: A numpy array of shape [N, 4] representing detected box coordinates
+              detected_scores: A 1-d numpy array of length N representing classification score
+              groundtruth_boxes: A numpy array of shape [M, 4] representing ground truth box coordinates
+
+            Returns:
+              scores: A numpy array representing the detection scores, sorted and filtered.
+              max_overlap_gt_ids: A numpy array indicating the detection's corresponding groundtruth box
+              tp_fp_labels: a boolean numpy array indicating whether a detection is a true positive.
+              is_gt_box_detected: Indicates if a ground truth box is detected
+        """
         # Return sorted detection dict with corrresponsing ID from gt or NULL
         detected_boxes = dt_dict['detection_boxes']
         detected_scores = dt_dict['detection_scores']
@@ -79,7 +79,7 @@ class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
         # If no GT value then all detection are false positive
         if groundtruth_boxes.size == 0:
             #return scores, np.zeros(num_detected_boxes, dtype=bool)
-            print "No ground truth, All FP"
+            print("No ground truth, All FP")
             return dt_dict
 
         # Is ith detection a True positive

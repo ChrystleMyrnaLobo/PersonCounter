@@ -24,13 +24,15 @@ where
 - `model` : model to be used for object detection
 
 ### Approach 2 : Detect and track (OpenCV)
-Perform detection perodically and track onwards [multiple object tracker]
-Use groundtruth bb `python tracker_person_counter.py --video 10 --tracker csrt `  
+Perform detection periodically and track subsequent frames for window size [multiple object tracker]  
+Use groundtruth bb `python tracker_person_counter.py -v MOT16-10 -dh ~/4Sem/MTP1/MOT16 --tracker csrt `  
 where
-- `video` : path to video
+- `dataset_home`: path to dataset home
+- `video` : video stream. e.g: MOT16-10
 - `tracker` : Choose from csrt, kcf, boosting, mil, tld, medianflow, mosse
-- `processfr` : frame processing rate (skips intermediate frames)
-- `detectfr`: frame rate for detection rest of the frames are tracked
+- `window_size` : window size (#frames) for tracking
+- `detect_speed`: detection speed (sec)
+Use conda env `cv` in misc folder.
 
 ### Directory Structure
 Dataset
