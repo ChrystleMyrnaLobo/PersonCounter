@@ -6,7 +6,7 @@ from utils.dataset import MOT16
 from utils.pc_utils import pc_PerImageEvaluation
 
 import time, os, math
-import pandas
+import pandas as pd
 import logging
 from logging.config import fileConfig
 fileConfig('logging_config.ini')
@@ -39,13 +39,16 @@ class TrackerPersonCounter:
         #TODO pick between video and directory
         self.video_stream = cv2.VideoCapture(self.ds.getVideoStream()) #TODO resize
         # self.video_stream = cv2.VideoCapture(self.path_to_video) # open video
-        self.gt_ds = self.ds.parseGroundtruth(targetDS="OpenCV") # Extract BB from GT in OpenCV tracker format
+        self.gt_df = self.ds.parseAnnotation_OpenCV() #  GT BB in OpenCV tracker format as Pandas DataFrame
         self.result = [] # Result per BB
 
-    def detectOnFrame(self, frame, frame_id = 1):
+    def detectOnFrame(self, frame, frame_id):
         # Run detection, and filter out based on category and confidence
         image_id = str(frame_id).zfill(6)
-        bbs = self.gt_ds[image_id]['groundtruth_boxes'] # Using saved inference
+        logger.info("Frame id {} Image id {}".format(frame_id, image_id))
+        # bbs = self.gt_df[image_id]['groundtruth_boxes'] # Using saved inference
+        bbs = self.gt_df.loc[self.gt_df.frame_id == frame_id][['xmin', 'ymin', 'width', 'height']].values
+        #TODO correlate with previous value
 
         OPENCV_OBJECT_TRACKERS = {
             "csrt": cv2.TrackerCSRT_create,
@@ -61,13 +64,13 @@ class TrackerPersonCounter:
         # MOSSE: Extremely fast but not as accurate as either KCF or CSRT
 
         self.trackers = cv2.MultiTracker_create() # Multi object tracker
-        #TODO corelate
         # create a new object tracker for each object and add it to our multi-object tracker
         for bb in bbs:
             box = tuple(bb)
             object_tracker = OPENCV_OBJECT_TRACKERS[self.tracker_algo]()
             self.trackers.add(object_tracker, frame, box)
         self.log_output(bbs, frame_id, "detect", self.detect_lag)
+        self.showInference(frame, bbs, frame_id, "detect")
 
     def trackOnFrame(self, frame, frame_id):
         start = time.time()
@@ -75,16 +78,28 @@ class TrackerPersonCounter:
         # frames skipped while tracking = tracking speed * video frame rate
         self.track_lag = math.floor( (time.time() - start) * self.ds.frame_rate )
         self.log_output(bbs, frame_id, "track", self.track_lag)
+        self.showInference(frame, bbs, frame_id, "track")
 
     def log_output(self, bbs, frame_id, phase, lag):
         """ Log the output for each frame, either detect or track """
-        person_id = 1
+        local_id = 1
         for box in bbs:
             (x, y, w, h) = [int(v) for v in box]
-            row = [frame_id, phase, person_id, x, y, w, h, lag]
-            person_id += 1
+            row = [frame_id, phase, local_id, x, y, w, h, lag]
+            local_id += 1
             self.result.append(row)
         pass
+
+    def showInference(self, frame, boxes, frame_id, phase):
+        for box in boxes:
+            (x, y, w, h) = [int(v) for v in box]
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        cv2.imshow("Frame {} {}".format(phase, frame_id), frame)
+        key = cv2.waitKey(2000)
+        # if key == 27: # Esc key
+        #     break
+        cv2.destroyAllWindows()
 
     def run(self):
         """ Detect on leader frame, skipping frames received during the detection; Track subsequent k (window size) frames, skipping frames received during the tracking """
@@ -93,6 +108,7 @@ class TrackerPersonCounter:
         k = self.window_size
 
         while True:
+            #logger.info("Frame cnt {} Capture cnt {}".format(frame_id, self.video_stream.get(1))) #cv2.CV_CAP_PROP_POS_FRAMES
             frame = self.video_stream.read()[1]
             if frame is None: # End of video
                 break
@@ -114,8 +130,8 @@ class TrackerPersonCounter:
             frame_id += 1
 
         logger.info("Save log to {}".format(self.path_to_output_file))
-        pd = pandas.DataFrame(self.result)
-        pd.to_csv(self.path_to_output_file, header=False) # contains index
+        res = pd.DataFrame(self.result)
+        res.to_csv(self.path_to_output_file, header=False) # contains index
 
 if __name__ == '__main__' :
     # python tracker_person_counter.py -v MOT16-10 -dh ~/4Sem/MTP1/MOT16
@@ -123,9 +139,9 @@ if __name__ == '__main__' :
     parser = argparse.ArgumentParser()
     parser.add_argument("-dh", "--dataset_home", type=str, required=True, help="path to dataset home")
     parser.add_argument("-v", "--video", type=str, required=True, help="video stream. e.g: MOT16-10")
-    parser.add_argument("-t", "--tracker", type=str, default="kcf",	help="OpenCV object tracker type. Pick from kcf, csrt, mosse, boosting, mil, tld, medianflow ")
-    parser.add_argument("-dt", "--detect_speed", type=float, default="0.5",	help="detection speed (sec)")
-    parser.add_argument("-w", "--window_size", type=int, default="10",	help="Window size (#frames) of tracking")
+    parser.add_argument("-t", "--tracker", type=str, default="csrt",	help="OpenCV object tracker type. Pick from kcf, csrt, mosse, boosting, mil, tld, medianflow ")
+    parser.add_argument("-dt", "--detect_speed", type=float, default="0.7",	help="detection speed (sec)")
+    parser.add_argument("-w", "--window_size", type=int, default="35",	help="Window size (#frames) of tracking")
 
     args = parser.parse_args()
     for key, value in sorted(vars(args).items()):
@@ -136,10 +152,20 @@ if __name__ == '__main__' :
     if dataset_name == "MOT16":
         ds = MOT16(args.dataset_home, int(vid))
     else:
-        logger.error("Invalid dataset")
-        return
+        logger.info("Invalid dataset")
+        exit()
     tpc = TrackerPersonCounter(ds, args.tracker, args.detect_speed, args.window_size)
     tpc.setup()
     tpc.run()
 
+    # for tracker in ["kcf", "csrt", "mosse", "boosting", "mil", "tld", "medianflow"]:
+    #     for detect_speed in [0, 0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 1.7, 2]:
+    #         for window_size in range(0,41,5):
+    #             try:
+    #                 tpc = TrackerPersonCounter(ds, tracker, detect_speed, window_size)
+    #                 tpc.setup()
+    #                 tpc.run()
+    #             except Exception as ex:
+    #                 logger.error(ex)
+    #                 logger.error("Fail {}".format(tpc.path_to_output_file))
     logger.info("Done")
