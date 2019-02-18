@@ -1,7 +1,9 @@
 # ignore all output folder
-Output
+output
 *.ipynb
 *.pyc
 *.log
 *.mp4
 *.csv
+*.avi
+*.caffemodel

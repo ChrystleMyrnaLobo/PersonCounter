@@ -27,7 +27,7 @@ class TrackerPersonCounter:
         self.window_size = ws
         filename =  ds.video_name + "_" + self.tracker_algo + "_pfr" + str(dt) + "_ws" + str(self.window_size) + '.csv'
         logger.info("\nFilename {}\n".format(filename))
-        self.path_to_output_file = os.path.join("output", filename)
+        self.path_to_output_file = os.path.join("output", "localtrack", filename)
 
     def str(self):
         txt = "Tracker person counter \n"
@@ -36,6 +36,7 @@ class TrackerPersonCounter:
         return txt
 
     def setup(self):
+        """ Initialized video stream and detection source"""
         #TODO pick between video and directory
         self.video_stream = cv2.VideoCapture(self.ds.getVideoStream()) #TODO resize
         # self.video_stream = cv2.VideoCapture(self.path_to_video) # open video
@@ -43,10 +44,9 @@ class TrackerPersonCounter:
         self.result = [] # Result per BB
 
     def detectOnFrame(self, frame, frame_id):
+        """ Perform detection and initialize trackers based on detected objects """
         # Run detection, and filter out based on category and confidence
-        image_id = str(frame_id).zfill(6)
-        logger.info("Frame id {} Image id {}".format(frame_id, image_id))
-        # bbs = self.gt_df[image_id]['groundtruth_boxes'] # Using saved inference
+        logger.info("Frame id {}".format(frame_id))
         bbs = self.gt_df.loc[self.gt_df.frame_id == frame_id][['xmin', 'ymin', 'width', 'height']].values
         #TODO correlate with previous value
 
@@ -70,15 +70,16 @@ class TrackerPersonCounter:
             object_tracker = OPENCV_OBJECT_TRACKERS[self.tracker_algo]()
             self.trackers.add(object_tracker, frame, box)
         self.log_output(bbs, frame_id, "detect", self.detect_lag)
-        self.showInference(frame, bbs, frame_id, "detect")
+        #self.showInference(frame, bbs, frame_id, "detect")
 
     def trackOnFrame(self, frame, frame_id):
+        """ Perform update on frame """
         start = time.time()
         (success, bbs) = self.trackers.update(frame) # update tracker
         # frames skipped while tracking = tracking speed * video frame rate
         self.track_lag = math.floor( (time.time() - start) * self.ds.frame_rate )
         self.log_output(bbs, frame_id, "track", self.track_lag)
-        self.showInference(frame, bbs, frame_id, "track")
+        #self.showInference(frame, bbs, frame_id, "track")
 
     def log_output(self, bbs, frame_id, phase, lag):
         """ Log the output for each frame, either detect or track """
@@ -91,6 +92,7 @@ class TrackerPersonCounter:
         pass
 
     def showInference(self, frame, boxes, frame_id, phase):
+        """ Display the image and BB for debugging  """
         for box in boxes:
             (x, y, w, h) = [int(v) for v in box]
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -157,7 +159,7 @@ if __name__ == '__main__' :
     tpc = TrackerPersonCounter(ds, args.tracker, args.detect_speed, args.window_size)
     tpc.setup()
     tpc.run()
-
+    
     # for tracker in ["kcf", "csrt", "mosse", "boosting", "mil", "tld", "medianflow"]:
     #     for detect_speed in [0, 0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 1.7, 2]:
     #         for window_size in range(0,41,5):

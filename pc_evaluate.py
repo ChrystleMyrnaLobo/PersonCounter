@@ -4,14 +4,17 @@ from object_detection.utils import np_box_list_ops
 from object_detection.utils import np_box_mask_list
 from object_detection.utils import np_box_mask_list_ops
 from object_detection.utils import per_image_evaluation
+import cv2 # 3.4.5
 
 import time, os
+import argparse
 import pandas as pd
 import numpy as np
 import logging
 from logging.config import fileConfig
 fileConfig('logging_config.ini')
 logger = logging.getLogger()
+logger.setLevel(20) # ignore less than level # Info 20 debug 10
 
 # Override per image evaluation
 class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
@@ -36,7 +39,7 @@ class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
               tp_fp_labels: a boolean numpy array indicating whether a detection is a true positive.
               is_gt_box_detected: Indicates if a ground truth box is detected
         """
-        detected_boxlist = np_box_list_ops.non_max_suppression(detected_boxlist, self.nms_max_output_boxes, self.nms_iou_threshold)
+        # detected_boxlist = np_box_list_ops.non_max_suppression(detected_boxlist, self.nms_max_output_boxes, self.nms_iou_threshold)
         # Compute IoU for every detection and groundtruth pair. Detection with score < score threshold are ignored. Rest are sorted.
         iou = np_box_list_ops.iou(detected_boxlist, groundtruth_boxlist)
         # The boxlist is sorted, use local_id as unique identifier
@@ -49,6 +52,7 @@ class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
 
         if iou.shape[1] > 0: # For each detection, the best matched GT
             max_overlap_gt_ids = np.argmax(iou, axis=1)
+            logger.debug("Matching \n {}".format(max_overlap_gt_ids))
             is_gt_box_detected = np.zeros(iou.shape[1], dtype=bool)
             for i in range(0,num_detected_boxes): # i and gt_id are index not local_id
                 gt_id = max_overlap_gt_ids[i]
@@ -57,13 +61,15 @@ class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
                     cur_global_id[i] = prev_global_id[gt_id]
                     tp_fp_labels[i] = True
                     is_gt_box_detected[gt_id] = True
+            logger.debug("True positive \n {}".format(tp_fp_labels))
         # Return local_id and global_id mapping
         return (detected_boxlist.get_field('local_id'), cur_global_id)
 
 class PersonCounterEvaluation:
-    def __init__(self):
-        self.path_to_output_file = "output/MOT16-10_csrt_pfr0.7_ws35.csv"
-        self.path_to_annotated_file = "ann_MOT16-10_csrt_pfr0.7_ws35.csv"
+    def __init__(self, ds, ipf, opf):
+        self.ds = ds
+        self.path_to_output_file = ipf
+        self.path_to_annotated_file = opf
         self.pie = pc_PerImageEvaluation(1) #TODO
         pass
 
@@ -79,6 +85,7 @@ class PersonCounterEvaluation:
         bbs = bbs[['y', 'x', 'y_max', 'x_max']].values #TODO convert to appropriate type
         local_ids = singleFrame['local_id'].values
         global_ids = singleFrame['global_id'].values
+        isNew = singleFrame['isNew'].values
 
         cnt = singleFrame.shape[0]
         try:
@@ -95,6 +102,7 @@ class PersonCounterEvaluation:
         frame_boxlist.add_field('global_id', global_ids)
         frame_boxlist.add_field('classes', classes)
         frame_boxlist.add_field('scores', scores)
+        frame_boxlist.add_field('isNew', isNew)
         return frame_boxlist
 
     def updateFrame(self, cur_frame, mapping):
@@ -120,7 +128,9 @@ class PersonCounterEvaluation:
         unassigned_cnt = cur_frame[cur_frame.global_id == 0].shape[0]
         start = person_count + 1
         end = start + unassigned_cnt
-        fresh_id = pd.Series( range(start, end) )
+        logger.debug("Person count {} Unassigned {} Start {} End {}".format(person_count, unassigned_cnt, start, end))
+        fresh_id = [i for i in range(start, end)]
+        cur_frame.loc[cur_frame.global_id == 0, 'isNew'] = 1
         cur_frame.loc[cur_frame.global_id == 0, 'global_id'] = fresh_id
         return cur_frame, end
 
@@ -132,14 +142,16 @@ class PersonCounterEvaluation:
             18    61        track   1         1316  476  71  217  11
             19    61        track   2         1477  480  75  179  11
         """
-        person_count = 0
         header = ['frame_id', 'phase', 'local_id', 'x', 'y', 'w', 'h', 'lag']
         dt = pd.read_csv(self.path_to_output_file, index_col = 0, names=header)
         frame_list =  dt.groupby(['frame_id','phase']).size().reset_index().rename(columns={0:'count'})
         dt = dt.assign(global_id=0) # Global person_id
-        # Initializze for 1st frame
+        dt = dt.assign(isNew=0) #is New wrt previous frame
+        # Initialize for 1st frame
         pid = dt.loc[dt.frame_id==1,'local_id'].values
         dt.loc[dt.frame_id==1, 'global_id'] = pid
+        dt.loc[dt.frame_id==1, 'isNew'] = 1
+        person_count = dt.loc[dt.frame_id==1].shape[0]
         prev_fid = 1
 
         #for fid, phase, count in frame_list[1:-1]: # Upto last but one
@@ -148,9 +160,14 @@ class PersonCounterEvaluation:
             if row.phase == "detect": # Match with previous tracks
                 cur_frame = dt.loc[ dt['frame_id'] == row.frame_id ]
                 prev_frame = dt.loc[ dt['frame_id'] == prev_fid ]
+                logger.debug("Previous frame \n {}".format(prev_frame))
+                logger.debug("Current frame before \n {}".format(cur_frame))
                 cur_frame, person_count = self.matching_algorithm(cur_frame, prev_frame, person_count)
                 pid = cur_frame['global_id'].values #Convert to numpy
                 dt.loc[dt.frame_id==row.frame_id, 'global_id'] = pid
+                isNew = cur_frame['isNew'].values #Convert to numpy
+                dt.loc[dt.frame_id==row.frame_id, 'isNew'] = isNew
+                logger.debug("Current frame updated \n{}".format(dt.loc[ dt['frame_id'] == row.frame_id ]))
             elif row.phase == "track": # Copy the person id wrt previous frame
                 dt.loc[dt.frame_id== row.frame_id, 'global_id'] = pid
             else:
@@ -165,19 +182,73 @@ class PersonCounterEvaluation:
         logger.info("People Count {}".format(dt['global_id'].max()))
         dt.to_csv(self.path_to_annotated_file, index =False)
 
+    def saveInference(self, frame_id, frame, phase="skip"):
+        image_id = str(frame_id).zfill(6)
+        cv2.imwrite("output/inf/Frame_{}_{}.jpg".format(frame_id, phase), frame)
+
+    def showInference(self):
+        header = ['frame_id', 'phase', 'local_id', 'x', 'y', 'w', 'h', 'lag', 'global_id']
+        dt = pd.read_csv(self.path_to_annotated_file)
+        prev_fid = 0
+        for frame_id in dt.frame_id.unique():
+            # Get image
+            frame = cv2.imread(self.ds.getFramePath(frame_id))
+            # Get detection
+            boxes = dt.loc[dt.frame_id == frame_id][['x', 'y', 'w', 'h','global_id', 'isNew']].values
+            phase = dt.loc[dt.frame_id == frame_id]['phase'].unique()[0]
+
+            for box in boxes:
+                (x, y, w, h) = [int(v) for v in box[0:4]]
+                if box[5] == 1: # New object in red
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                else:
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                label = str(box[4])
+                font = cv2.FONT_HERSHEY_PLAIN
+                cv2.putText(frame, label, (x,y), font, 1, (0,225,0), 2, cv2.LINE_AA)
+            if phase == "track":
+                prev_fid = frame_id
+                prev_frame = frame
+                continue
+
+            cv2.imshow("Frame {} {}".format(phase, frame_id), frame)
+            #self.saveInference(frame_id, frame, phase)
+            #if prev_fid != 0:
+            #    self.saveInference(prev_fid, prev_frame, "track")
+            key = cv2.waitKey(2000)
+            if key == 27: # Esc key
+                cv2.destroyAllWindows()
+                break
+            cv2.destroyAllWindows()
+
 if __name__ == '__main__' :
-    # python pc_evaluate.py -v MOT16-10 -dh ~/4Sem/MTP1/MOT16
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument("-dh", "--dataset_home", type=str, required=True, help="path to dataset home")
-    # parser.add_argument("-v", "--video", type=str, required=True, help="video stream. e.g: MOT16-10")
-    # args = parser.parse_args()
-    # for key, value in sorted(vars(args).items()):
-    #     logger.info(str(key) + ': ' + str(value))
-    #
-    # # Dataset
-    # dataset_name, vid = args.video.split('-')
-    # if dataset_name == "MOT16":
-    #     ds = MOT16(args.dataset_home, int(vid))
-    eve = PersonCounterEvaluation()
+    # python pc_evaluate.py -v MOT16-10 -dh ~/4Sem/MTP1/MOT16 -i
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-dh", "--dataset_home", type=str, required=True, help="path to dataset home")
+    parser.add_argument("-v", "--video", type=str, required=True, help="video stream. e.g: MOT16-10")
+    parser.add_argument("-i", "--input_dir", type=str, required=True, help="path to dir having local track")
+    parser.add_argument("-o", "--output_dir", type=str, required=True, help="path to output folder")
+    args = parser.parse_args()
+    for key, value in sorted(vars(args).items()):
+        logger.info(str(key) + ': ' + str(value))
+
+    # Dataset
+    dataset_name, vid = args.video.split('-')
+    if dataset_name == "MOT16":
+        ds = MOT16(args.dataset_home, int(vid))
+
+    ipf = "output/localtrack/MOT16-10_kcf_pfr0.1_ws10.csv"
+    opf = "output/globalda/ann_MOT16-10_kcf_pfr0.1_ws10.csv"
+    eve = PersonCounterEvaluation(ds,ipf, opf)
     eve.assign_id()
+    #eve.showInference()
+
+    # for filename in os.listdir(args.input_dir):
+    #     if not filename.endswith('.csv'):
+    #         continue
+    #     ipf = os.path.join(args.input_dir, filename)
+    #     opf = os.path.join(args.output_dir, filename)
+    #     eve = PersonCounterEvaluation(ds,ipf, opf)
+    #     eve.assign_id()
+    #eve.showInference()
     logger.info("Done")
