@@ -11,6 +11,7 @@ import logging
 from logging.config import fileConfig
 fileConfig('logging_config.ini')
 logger = logging.getLogger()
+logger.setLevel(20) # ignore less than level # Info 20 debug 10
 
 class TrackerPersonCounter:
     """
@@ -19,15 +20,15 @@ class TrackerPersonCounter:
     The tracker is reinitialized at a frame rate of of <detectfr>
     """
     def __init__(self, ds, tkr, dt, ws):
-        logger.info("Running tracker based person counter")
         self.ds = ds
         self.tracker_algo = tkr
         # frames skipped while detection = detection speed * video frame rate
-        self.detect_lag = math.floor(dt * ds.frame_rate)
+        # Ideal case when detection speed = 0, then go to next frame
+        self.detect_lag = max(1, math.floor(dt * ds.frame_rate))
         self.window_size = ws
         filename =  ds.video_name + "_" + self.tracker_algo + "_pfr" + str(dt) + "_ws" + str(self.window_size) + '.csv'
-        logger.info("\nFilename {}\n".format(filename))
         self.path_to_output_file = os.path.join("output", "localtrack", filename)
+        logger.info("Tracker based person counter {}".format(filename))
 
     def str(self):
         txt = "Tracker person counter \n"
@@ -44,9 +45,29 @@ class TrackerPersonCounter:
         self.result = [] # Result per BB
 
     def detectOnFrame(self, frame, frame_id):
-        """ Perform detection and initialize trackers based on detected objects """
+        """ Perform detection and initialize trackers based on detected objects
+            KCF Kernelized Correlation Filter :
+             Fast and accurate
+             Find direction of motion by looking for same points in next frame
+            CSRT Discriminative Correlation Filter (with Channel and Spatial Reliability): CVPR 2017
+             More accurate than KCF but slower
+             Use spacial
+            MOSSE
+             Extremely fast but not as accurate as either KCF or CSRT
+            Boosting :
+             Slow. Classifer.
+             Trained at runtime with +ve (given BB) and -ve (random patches outside BB) examples
+            MIL Multiple Instance learning: CVPR 2009
+             Similar to Boosting, but +ve (not centered) and -ve bags.
+            TLD Tracking learning and detection: Pattern Analysis and Machine Intelligence 2011
+             Track, detector corrects tracker, learning estimate erros and update
+             Good for occlusion
+            Medianflow:  International Conference on Pattern Recognition, 2010
+             Low entropy video
+             Track in forward and backward in time and minimize error
+        """
         # Run detection, and filter out based on category and confidence
-        logger.info("Frame id {}".format(frame_id))
+        logger.debug("Frame id {}".format(frame_id))
         bbs = self.gt_df.loc[self.gt_df.frame_id == frame_id][['xmin', 'ymin', 'width', 'height']].values
         #TODO correlate with previous value
 
@@ -59,9 +80,6 @@ class TrackerPersonCounter:
             "medianflow": cv2.TrackerMedianFlow_create,
             "mosse": cv2.TrackerMOSSE_create
         }
-        # KCF: Fast and accurate
-        # CSRT: More accurate than KCF but slower
-        # MOSSE: Extremely fast but not as accurate as either KCF or CSRT
 
         self.trackers = cv2.MultiTracker_create() # Multi object tracker
         # create a new object tracker for each object and add it to our multi-object tracker
@@ -110,7 +128,7 @@ class TrackerPersonCounter:
         k = self.window_size
 
         while True:
-            #logger.info("Frame cnt {} Capture cnt {}".format(frame_id, self.video_stream.get(1))) #cv2.CV_CAP_PROP_POS_FRAMES
+            #logger.debug("Frame cnt {} Capture cnt {}".format(frame_id, self.video_stream.get(1))) #cv2.CV_CAP_PROP_POS_FRAMES
             frame = self.video_stream.read()[1]
             if frame is None: # End of video
                 break
@@ -122,16 +140,19 @@ class TrackerPersonCounter:
             if k == self.window_size: # Window completed
                 self.detectOnFrame(frame, frame_id)
                 next_frame_id += self.detect_lag
-                k = 0
-                logger.info("Frame {} DETECT. Skipping {} frame(s) to {}".format(frame_id, self.detect_lag, next_frame_id) )
+                if self.detect_lag == 1:
+                    k = self.window_size
+                else:
+                    k = 0
+                logger.debug("Frame {} DETECT. Skipping {} frame(s) to {}".format(frame_id, self.detect_lag, next_frame_id) )
             else: # Track
                 self.trackOnFrame(frame, frame_id)
                 next_frame_id += self.track_lag
                 k += 1
-                logger.info("Frame {} TRACK {}. Skipping {} frame(s) to {}".format(frame_id, k, self.track_lag, next_frame_id) )
+                logger.debug("Frame {} TRACK {}. Skipping {} frame(s) to {}".format(frame_id, k, self.track_lag, next_frame_id) )
             frame_id += 1
 
-        logger.info("Save log to {}".format(self.path_to_output_file))
+        logger.debug("Save log to {}".format(self.path_to_output_file))
         res = pd.DataFrame(self.result)
         res.to_csv(self.path_to_output_file, header=False) # contains index
 
@@ -154,13 +175,13 @@ if __name__ == '__main__' :
     if dataset_name == "MOT16":
         ds = MOT16(args.dataset_home, int(vid))
     else:
-        logger.info("Invalid dataset")
+        logger.error("Invalid dataset")
         exit()
     tpc = TrackerPersonCounter(ds, args.tracker, args.detect_speed, args.window_size)
     tpc.setup()
     tpc.run()
-    
-    # for tracker in ["kcf", "csrt", "mosse", "boosting", "mil", "tld", "medianflow"]:
+
+    # for tracker in ["kcf", "csrt", "mosse", "boosting", "tld", "medianflow", "mil"]:
     #     for detect_speed in [0, 0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 1.7, 2]:
     #         for window_size in range(0,41,5):
     #             try:

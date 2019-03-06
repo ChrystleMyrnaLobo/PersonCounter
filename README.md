@@ -58,6 +58,17 @@ PersonCounter
           |-- result_person.csv       // Per object per frame
 ```
 
+### Frames to video
+Convert sequence of images to video using [ffmpeg]  
+`ffmpeg -framerate 7 -f image2 -i Frame_%03d.jpg ../output.mp4`.
+
+### MOT Metric in python
+- Setup mot metric `pip install motmetrics`
+- Evaluate the metric via `python pc_mot_evaluate.py  2>&1 | tee output/ev_mot.txt`
+
+
 [website]: https://motchallenge.net/data/MOT16/
 [paper]: https://arxiv.org/pdf/1603.00831.pdf
 [multiple object tracker]: https://www.pyimagesearch.com/2018/08/06/tracking-multiple-objects-with-opencv/
+[ffmpeg]: https://askubuntu.com/a/610945
+[py-motmetric]:https://github.com/cheind/py-motmetrics
