@@ -72,3 +72,4 @@ Convert sequence of images to video using [ffmpeg]
 [multiple object tracker]: https://www.pyimagesearch.com/2018/08/06/tracking-multiple-objects-with-opencv/
 [ffmpeg]: https://askubuntu.com/a/610945
 [py-motmetric]:https://github.com/cheind/py-motmetrics
+[object tracking]:(https://www.learnopencv.com/object-tracking-using-opencv-cpp-python/)

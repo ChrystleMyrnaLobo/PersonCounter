@@ -1,3 +1,4 @@
+import argparse
 import os
 import csv
 import numpy as np
@@ -10,6 +11,7 @@ import logging
 from logging.config import fileConfig
 fileConfig('logging_config.ini')
 logger = logging.getLogger()
+logger.setLevel(20) # ignore less than level # Info 20 debug 10
 
 class BasicPersonCounter:
     def __init__(self, useGT, v_id, m_idx, iou, stepSize):
@@ -168,3 +170,20 @@ class BasicPersonCounter:
             prev_dict = cur_dict
         # Save the updated ev
         #self.visualize_reid(ev_data)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--video',type=int, nargs='?', default=10, help="video number of MOT16 dataset")
+    parser.add_argument('--iou',type=float, nargs='?', default=0.3, help="iou threshold for matching")
+    parser.add_argument('--stepSize',type=float, nargs='?', default=1, help="processing speed fps")
+    parser.add_argument('--useGT', default=False, action='store_true', help="use GT")
+    parser.add_argument('--model',type=int, nargs='?', default=2, help="model for prediction")
+    args = parser.parse_args()
+    for key, value in sorted(vars(args).items()):
+        logger.info(str(key) + ': ' + str(value))
+
+    print "gt_Iou", "Person count"
+    bpc = BasicPersonCounter(args.useGT, args.video, args.model, args.iou, args.stepSize)
+    # bpc.assign_id()
+    print args.iou, bpc.person_counter
+    logger.info("Done")

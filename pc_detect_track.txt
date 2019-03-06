@@ -1,0 +1,47 @@
+Person Counter using track and detect approach
+
+Input: Video stream / sequence of images​
+Task: Maintain the identity of objects (person) ​
+Output: ​
+    Total people count – video ​
+    Count of new and recurring people – per frame​
+
+Tradeoff: Processing frame rate vs Accuracy
+​What frame-rate to operate on?
+- Detection frame rate​
+- Tracking frame rate​
+- Window size for tracker​
+
+Algorithm for detect and track
+- Perform detection on a frame​
+ - Initialize a tracker for each object detected​
+ - Match with the previous track (if any) based on IoU​
+- Perform tracking for subsequent w frames​
+- Repeat​
+* Frames received during detection or tracking are skipped​
+
+Experiment Setup:
+The experiment is designed to process frames at wall clock time.
+For the following setting:
+ detection speed = 0.1 s
+ tracker: KCF
+ window size: 5
+ Video: MOT16 10 which has a 30FPS frame rate
+Detection runs on frame #1, taking 0.1 seconds (hyperparameter). Frames received during detection are skipped. Here, 30 FPS * 0.1 seconds for detection = 3 frames are skipped. Next frame to be processed is frame #4.
+Tracking speed isn't a hyperparameter since actual tracker is used. The frames received while tracking is skipped.
+The window size is the number of frames on which tracking is performed, skipping frames receive during the tracking.
+This setup has the following frames processed (D: detect, T: track)
+D1 T4 T6 T8 T10 T13 D15 T18 ...
+
+1. Detection phase
+The accuracy of the detector is critical for the count. So assuming a perfect (accuracy) detector but vary the detection speed.
+Detector: Ground truth ​
+Detection speed (s): 0, 0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 1.7, 2​
+
+2. Tracking phase
+Trackers are initialized with detection with one tracker per detection.
+Trackers: KCF, CSRT, Moose, Boosting, TLD, MedianFlow​
+Window size (# frames tracked): 0 to 40 in steps of 5​
+
+3. Data association
+A batch is formed with 1 frame detected and subsequent w frames tracked. Multiple such batches need to be merged to get global person count. The last frame (tracked) of batch i and the first frame (detected) of batch i+1 are used for data association. IoU of 0.5​ is used between the boundary boxes.
