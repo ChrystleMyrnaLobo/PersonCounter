@@ -1,0 +1,56 @@
+name: cv
+channels:
+  - menpo
+  - defaults
+dependencies:
+  - blas=1.0=mkl
+  - ca-certificates=2019.1.23=0
+  - certifi=2018.8.24=py35_1
+  - intel-openmp=2019.1=144
+  - jpeg=9b=h024ee3a_2
+  - libedit=3.1.20170329=h6b74fdf_2
+  - libffi=3.2.1=hd88cf55_4
+  - libgcc-ng=8.2.0=hdf63c60_1
+  - libgfortran-ng=7.3.0=hdf63c60_0
+  - libpng=1.6.36=hbc83047_0
+  - libstdcxx-ng=8.2.0=hdf63c60_1
+  - mkl=2018.0.3=1
+  - mkl_fft=1.0.6=py35h7dd41cf_0
+  - mkl_random=1.0.1=py35h4414c95_1
+  - ncurses=6.1=he6710b0_1
+  - numpy=1.15.2=py35h1d66e8a_0
+  - numpy-base=1.15.2=py35h81de0dd_0
+  - openssl=1.0.2p=h14c3975_0
+  - pandas=0.23.4=py35h04863e7_0
+  - pip=10.0.1=py35_0
+  - python=3.5.6=hc3d631a_0
+  - python-dateutil=2.7.3=py35_0
+  - pytz=2018.5=py35_0
+  - readline=7.0=h7b6447c_5
+  - setuptools=40.2.0=py35_0
+  - six=1.11.0=py35_1
+  - sqlite=3.26.0=h7b6447c_0
+  - tk=8.6.8=hbc83047_0
+  - wheel=0.31.1=py35_0
+  - xz=5.2.4=h14c3975_4
+  - zlib=1.2.11=h7b6447c_3
+  - dlib=19.9=py35_0
+  - pip:
+    - absl-py==0.2.0
+    - astor==0.6.2
+    - bleach==1.5.0
+    - gast==0.2.0
+    - grpcio==1.11.0
+    - html5lib==0.9999999
+    - imutils==0.5.2
+    - markdown==2.6.11
+    - motmetrics==1.1.3
+    - object-detection==0.1
+    - protobuf==3.5.2.post1
+    - scipy==1.2.1
+    - tensorboard==1.7.0
+    - tensorflow==1.7.0
+    - termcolor==1.1.0
+    - werkzeug==0.14.1
+prefix: /home/chrystle/anaconda2/envs/cv
+
