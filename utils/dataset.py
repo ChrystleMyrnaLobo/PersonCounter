@@ -66,7 +66,6 @@ class MOT16:
     def parseINI(self):
         # Read seqinfo.ini
         path_ini_file = os.path.join(self.path_to_dataset_dir, 'seqinfo.ini')
-        print(path_ini_file)
         parser = configparser.ConfigParser()
         parser.read(path_ini_file)
         self.image_count = int( parser.get('Sequence', 'seqLength') )

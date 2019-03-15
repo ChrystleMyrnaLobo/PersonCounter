@@ -181,13 +181,6 @@ class AssociateTrack:
 
         # Save the person_id
         header.append('global_id')
-        # ats = dt.loc[dt['phase']=='track','lag'].mean()
-        # pc = dt['global_id'].max()
-        # tfp = dt.frame_id.unique().shape[0] # total count of frames processed
-        # tfd = frame_list.loc[frame_list.phase=="detect"].shape[0] # total count of frames on which detection was performed
-        # frame_list['virtual_frame_id'] = frame_list.index
-        # adntp = frame_list.loc[frame_list.phase=="detect"]["virtual_frame_id"].rolling(window=2).apply(lambda x: x[1] - x[0]).mean()  # Average Detect and Track period i.e.average #frames between detections
-        # logger.info("{} Person Count {} Average track speed {}".format(self.path_to_output_file, pc, ats))
         dt.to_csv(self.path_to_annotated_file, index =False)
         return (pc, ats, tfp, tfd, adntp)
 
@@ -260,9 +253,6 @@ if __name__ == '__main__' :
     # eve.assign_id()
     # eve.showInference()
 
-    # summary = []
-    # summary_file = os.path.join( os.path.dirname(args.input_dir),"summary.csv")
-    # header = ['video', 'tracker algo', 'detect speed', 'average track speed','window size', 'person count', 'total frames processed', 'total frames detected', 'avg DnT period (frames)']
     for filename in os.listdir(args.input_dir):
         if not filename.endswith('.csv'):
             continue
@@ -270,11 +260,5 @@ if __name__ == '__main__' :
         opf = os.path.join(args.output_dir, filename)
         eve = AssociateTrack(ds, ipf, opf)
         pc, ats, tfp, tfd, adntp = eve.assign_id()
-    #     (vid, algo, pfr, ws) = str(ipf).split("_")
-    #     vid = vid.split('/')[-1]
-    #     summary.append( [vid, algo, pfr[3:], ats, ws[2:-4], pc, tfp, tfd, adntp] )
-    # dt = pd.DataFrame.from_records(summary, columns=header)
-    # dt.to_csv(summary_file, index=False)
-    # logger.info("Summary file {}".format(summary_file))
 
     logger.info("Done")

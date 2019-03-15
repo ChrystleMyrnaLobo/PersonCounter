@@ -1,16 +1,13 @@
 # Person Counter
-Count the total people present in the video (sequence of images). For a given frame `t`,
-- count of people in current frame `cnt`
-- count of people not present wrt previous frame `cnt_entry`
-- count people present `cnt_exit`
+Count the total people present in the video (sequence of images). For a given frame, count of people in current frame, maintain the identify in further frames
 
 ### Data set
 MOT16 dataset obtained from [website] and [paper]
 
 ### Initial setup
-- Tensorflow object detection API and pretrained models present
-- MOT 16 dataset downloaded as same level as this folder
-- Follow `misc/readme`
+- MOT 16 dataset downloaded at `$MOT16`
+- Install Tensorflow Object Detection API used for IoU
+- Refer `misc` folder for auxillary files
 
 ### Approach 1 : Position based (IoU)
 For data association between two frames, use IoU of bb  
@@ -24,15 +21,40 @@ where
 - `model` : model to be used for object detection
 
 ### Approach 2 : Detect and track (OpenCV)
-Perform detection periodically and track subsequent frames for window size [multiple object tracker]  
-Use groundtruth bb `python tracker_person_counter.py -v MOT16-10 -dh ~/4Sem/MTP1/MOT16 --tracker csrt `  
+- A Detect-and-Track simulation framework where detection is done periodically and subsequent frames (window size) are tracked.   
+Eg: Simulation on tracking window of size 3 frames `[D T T T] [D T T T] [D T T T]`
+- Data association via IoU is performed on between windows
+- OpenCV Trackers [multiple object tracker]
+
+#### Usage
+Conda environment file `misc/cv.yml`
+1. Run simulation
+```
+python tracker_person_counter.py -v MOT16-10 -dh $MOT16 --tracker csrt 2>&1 | tee output/log/simulation.log
+```
 where
-- `dataset_home`: path to dataset home
-- `video` : video stream. e.g: MOT16-10
-- `tracker` : Choose from csrt, kcf, boosting, mil, tld, medianflow, mosse
-- `window_size` : window size (#frames) for tracking
-- `detect_speed`: detection speed (sec)
-Use conda env `cv` in misc folder.
+  - `dataset_home`: path to dataset home
+  - `video` : video stream. e.g: MOT16-10
+  - `tracker` : Choose from csrt, kcf, boosting, mil, tld, medianflow, mosse
+  - `window_size` : window size (#frames) for tracking
+  - `detect_speed`: detection speed (sec)
+2. Data association
+Generate global person id from detect-track paths
+```
+python pc_data_association.py -v MOT16-10 -dh $MOT16 -i output/local_track -o output/global_track
+```
+where
+  - `dataset_home`: path to dataset home
+  - `video` : video stream. e.g: MOT16-10
+  - `input_dir` : directory of detections having local id
+  - `output_dir`: detection to save detections after assigning global id
+3. Evaluation  
+Multiple object tracking metrics to evaluate the simulations.
+```
+python pc_mot_evaluate.py -dh $MOT16 2>&1 | tee output/log/mot_evaluate.log
+./parse_log.sh output/log/mot_evaluate.log
+```
+- Setup mot metric `pip install motmetrics`
 
 ### Directory Structure
 Dataset
@@ -58,13 +80,9 @@ PersonCounter
           |-- result_person.csv       // Per object per frame
 ```
 
-### Frames to video
+#### Convert frames to video
 Convert sequence of images to video using [ffmpeg]  
-`ffmpeg -framerate 7 -f image2 -i Frame_%03d.jpg ../output.mp4`.
-
-### MOT Metric in python
-- Setup mot metric `pip install motmetrics`
-- Evaluate the metric via `python pc_mot_evaluate.py  2>&1 | tee output/ev_mot.txt`
+`ffmpeg -framerate 7 -f image2 -i Frame_%03d.jpg ../output.mp4`
 
 
 [website]: https://motchallenge.net/data/MOT16/
