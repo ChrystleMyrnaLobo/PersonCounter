@@ -28,7 +28,7 @@ class MOT16:
                 img1.*.jpg
                 seqinfo.ini
     """
-    def __init__(self, home, video_id):
+    def __init__(self, home, video_id=10):
         self.dataset_name = "MOT16"
         self.path_to_home = home #
         self.video_name = 'MOT16-' + str(video_id).zfill(2)
@@ -84,7 +84,7 @@ class MOT16:
         xmax = float(xmin) + float(width) # xmax # bb_left + bb_width
         # Insert as per OD
         gt_bb = [ymin, xmin, ymax, xmax]
-        gt_bb = [float(i) for i in gt_bb] #map(float, gt_bb)
+        gt_bb = [float(i) for i in gt_bb] # map(float, gt_bb)
         return int(frame_id), int(person_id), gt_bb, bool(int(conf)), int(class_id)
 
     def bb_od_to_mot(self, detection_box):
@@ -99,11 +99,27 @@ class MOT16:
 
     def parseAnnotation(self):
         """" Parse the annotation csv. Filter records with conf != 0. Return DataFrame """
+        # xmin ymin is top left.
         header = ['frame_id', 'person_id', 'xmin', 'ymin', 'width', 'height', 'conf', 'class_id', 'visibility']
         dt = pd.read_csv(self.path_to_annotation_file, names=header)
-        dt['ymax'] = dt.apply(lambda row: row.ymin + row.height, axis=1)
-        dt['xmax'] = dt.apply(lambda row: row.xmin + row.width, axis=1)
-        dt = dt.loc[dt.conf == 1] #Skip conf != 1
+        dt = dt.loc[dt.conf == 1] # Skip conf != 1
+        # Skip frames which have low visibility (occlusion by anotherstatic or moving object, or due to image border cropping)
+        dt = dt.loc[dt.visibility > 0.25] # visibility ration < 0.25
+
+        # Some BB span outside the frame.
+        # Case 1: BB overflow left. When xmin < 0 make width = xmin + width and xmin = 0
+        dt['width'] = dt.apply(lambda row: int(row.xmin + row.width) if row.xmin < 0 else int(row.width), axis=1)
+        dt['xmin'] = dt.apply(lambda row: 0 if row.xmin < 0 else int(row.xmin), axis = 1)
+        # Case 2: BB overflow right. When xmax > image width make width = image width - xmin
+        dt['width'] = dt.apply(lambda row: int(self.im_width - row.xmin) if row.xmin + row.width > self.im_width else int(row.width), axis=1)
+        # Case 3: BB overflow top. When ymin < 0 make height = ymin + height and ymin = 0
+        dt['height'] = dt.apply(lambda row: int(row.ymin + row.height) if row.ymin < 0 else int(row.height), axis=1)
+        dt['ymin'] = dt.apply(lambda row: 0 if row.ymin < 0 else int(row.ymin), axis = 1)
+        # Case 4: BB overflow bottom. When ymax > image height make width = image height - ymin
+        dt['height'] = dt.apply(lambda row: int(self.im_height - row.ymin) if row.ymin + row.height > self.im_height else int(row.height), axis=1)
+        # Find other end
+        dt['ymax'] = dt.apply(lambda row: int(row.ymin + row.height), axis=1)
+        dt['xmax'] = dt.apply(lambda row: int(row.xmin + row.width), axis=1)
         return dt
 
     def parseAnnotation_OpenCV(self):

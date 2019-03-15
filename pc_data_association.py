@@ -16,8 +16,8 @@ fileConfig('logging_config.ini')
 logger = logging.getLogger()
 logger.setLevel(20) # ignore less than level # Info 20 debug 10
 
-# Override per image evaluation
-class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
+# Override per image evaluation of Tensorflow Object Detection API
+class IntersectOverUnion(per_image_evaluation.PerImageEvaluation):
     """Evaluate detection result of a single image.PerImageEvaluation"""
     def __init__(self, num_groundtruth_classes, matching_iou_threshold=0.5, nms_iou_threshold=0.3, nms_max_output_boxes=50, group_of_weight=0.0):
         super(pc_PerImageEvaluation, self).__init__(num_groundtruth_classes, matching_iou_threshold, nms_iou_threshold, nms_max_output_boxes)
@@ -65,12 +65,15 @@ class pc_PerImageEvaluation(per_image_evaluation.PerImageEvaluation):
         # Return local_id and global_id mapping
         return (detected_boxlist.get_field('local_id'), cur_global_id)
 
-class PersonCounterEvaluation:
+class AssociateTrack:
+    """ Data association between tracks """
     def __init__(self, ds, ipf, opf):
         self.ds = ds
         self.path_to_output_file = ipf
         self.path_to_annotated_file = opf
         self.pie = pc_PerImageEvaluation(1) #TODO
+
+        self.img_cnt = 0
         pass
 
     def makeBoxList(self, singleFrame):
@@ -122,7 +125,7 @@ class PersonCounterEvaluation:
             mapping = self.pie.match_frames_on_iou(self.makeBoxList(cur_frame), self.makeBoxList(prev_frame))
             cur_frame = self.updateFrame(cur_frame, mapping)
         else:
-            logger.info("No ground truth, All FP")
+            logger.error("No ground truth, All FP")
 
         # Assign fresh id to unassigned detections
         unassigned_cnt = cur_frame[cur_frame.global_id == 0].shape[0]
@@ -156,7 +159,7 @@ class PersonCounterEvaluation:
 
         #for fid, phase, count in frame_list[1:-1]: # Upto last but one
         for row in frame_list[1:].itertuples():
-            logger.info("Compare {} frame {} with prev {}".format(row.phase, row.frame_id, prev_fid))
+            logger.debug("Compare {} frame {} with prev {}".format(row.phase, row.frame_id, prev_fid))
             if row.phase == "detect": # Match with previous tracks
                 cur_frame = dt.loc[ dt['frame_id'] == row.frame_id ]
                 prev_frame = dt.loc[ dt['frame_id'] == prev_fid ]
@@ -178,13 +181,21 @@ class PersonCounterEvaluation:
 
         # Save the person_id
         header.append('global_id')
-        #TODO save the frame
-        logger.info("People Count {}".format(dt['global_id'].max()))
+        # ats = dt.loc[dt['phase']=='track','lag'].mean()
+        # pc = dt['global_id'].max()
+        # tfp = dt.frame_id.unique().shape[0] # total count of frames processed
+        # tfd = frame_list.loc[frame_list.phase=="detect"].shape[0] # total count of frames on which detection was performed
+        # frame_list['virtual_frame_id'] = frame_list.index
+        # adntp = frame_list.loc[frame_list.phase=="detect"]["virtual_frame_id"].rolling(window=2).apply(lambda x: x[1] - x[0]).mean()  # Average Detect and Track period i.e.average #frames between detections
+        # logger.info("{} Person Count {} Average track speed {}".format(self.path_to_output_file, pc, ats))
         dt.to_csv(self.path_to_annotated_file, index =False)
+        return (pc, ats, tfp, tfd, adntp)
 
     def saveInference(self, frame_id, frame, phase="skip"):
-        image_id = str(frame_id).zfill(6)
         cv2.imwrite("output/inf/Frame_{}_{}.jpg".format(frame_id, phase), frame)
+        # self.img_cnt += 1
+        # image_id = str(self.img_cnt).zfill(3)
+        # cv2.imwrite("output/inf/Frame_{}.jpg".format(image_id), frame)
 
     def showInference(self):
         header = ['frame_id', 'phase', 'local_id', 'x', 'y', 'w', 'h', 'lag', 'global_id']
@@ -206,26 +217,31 @@ class PersonCounterEvaluation:
                 label = str(box[4])
                 font = cv2.FONT_HERSHEY_PLAIN
                 cv2.putText(frame, label, (x,y), font, 1, (0,225,0), 2, cv2.LINE_AA)
-            if phase == "track":
-                prev_fid = frame_id
-                prev_frame = frame
-                continue
 
-            cv2.imshow("Frame {} {}".format(phase, frame_id), frame)
-            #self.saveInference(frame_id, frame, phase)
-            #if prev_fid != 0:
+            self.saveInference(frame_id, frame, phase)
+
+            # Show / save only detected and immediate previous frame for IoU
+            # if phase == "track":
+            #     prev_fid = frame_id
+            #     prev_frame = frame
+            #     continue
+            # self.saveInference(frame_id, frame, phase)
+            # if prev_fid != 0:
             #    self.saveInference(prev_fid, prev_frame, "track")
-            key = cv2.waitKey(2000)
-            if key == 27: # Esc key
-                cv2.destroyAllWindows()
-                break
-            cv2.destroyAllWindows()
+
+            # cv2.imshow("Frame {} {}".format(phase, frame_id), frame)
+            # key = cv2.waitKey(2000)
+            # if key == 27: # Esc key
+            #     cv2.destroyAllWindows()
+            #     break
+            # cv2.destroyAllWindows()
 
 if __name__ == '__main__' :
-    # python pc_evaluate.py -v MOT16-10 -dh ~/4Sem/MTP1/MOT16 -i
+    # python pc_data_association.py -v MOT16-10 -dh ~/4Sem/MTP1/MOT16
+    # -i output/localtrack -o output/globalda
     parser = argparse.ArgumentParser()
-    parser.add_argument("-dh", "--dataset_home", type=str, required=True, help="path to dataset home")
-    parser.add_argument("-v", "--video", type=str, required=True, help="video stream. e.g: MOT16-10")
+    parser.add_argument("-dh", "--dataset_home", type=str, help="path to dataset home")
+    parser.add_argument("-v", "--video", type=str, default="MOT16-10", help="video stream. e.g: MOT16-10")
     parser.add_argument("-i", "--input_dir", type=str, required=True, help="path to dir having local track")
     parser.add_argument("-o", "--output_dir", type=str, required=True, help="path to output folder")
     args = parser.parse_args()
@@ -237,18 +253,28 @@ if __name__ == '__main__' :
     if dataset_name == "MOT16":
         ds = MOT16(args.dataset_home, int(vid))
 
-    ipf = "output/localtrack/MOT16-10_kcf_pfr0.1_ws10.csv"
-    opf = "output/globalda/ann_MOT16-10_kcf_pfr0.1_ws10.csv"
-    eve = PersonCounterEvaluation(ds,ipf, opf)
-    eve.assign_id()
-    #eve.showInference()
+    # filename = "MOT16-10_kcf_pfr0.1_ws5.csv"
+    # ipf = "output/localtrack/" + filename
+    # opf = "output/globalda/ann_" + filename
+    # eve = AssociateTrack(ds,ipf, opf)
+    # eve.assign_id()
+    # eve.showInference()
 
-    # for filename in os.listdir(args.input_dir):
-    #     if not filename.endswith('.csv'):
-    #         continue
-    #     ipf = os.path.join(args.input_dir, filename)
-    #     opf = os.path.join(args.output_dir, filename)
-    #     eve = PersonCounterEvaluation(ds,ipf, opf)
-    #     eve.assign_id()
-    #eve.showInference()
+    # summary = []
+    # summary_file = os.path.join( os.path.dirname(args.input_dir),"summary.csv")
+    # header = ['video', 'tracker algo', 'detect speed', 'average track speed','window size', 'person count', 'total frames processed', 'total frames detected', 'avg DnT period (frames)']
+    for filename in os.listdir(args.input_dir):
+        if not filename.endswith('.csv'):
+            continue
+        ipf = os.path.join(args.input_dir, filename)
+        opf = os.path.join(args.output_dir, filename)
+        eve = AssociateTrack(ds, ipf, opf)
+        pc, ats, tfp, tfd, adntp = eve.assign_id()
+    #     (vid, algo, pfr, ws) = str(ipf).split("_")
+    #     vid = vid.split('/')[-1]
+    #     summary.append( [vid, algo, pfr[3:], ats, ws[2:-4], pc, tfp, tfd, adntp] )
+    # dt = pd.DataFrame.from_records(summary, columns=header)
+    # dt.to_csv(summary_file, index=False)
+    # logger.info("Summary file {}".format(summary_file))
+
     logger.info("Done")

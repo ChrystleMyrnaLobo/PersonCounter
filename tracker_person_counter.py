@@ -3,6 +3,7 @@ import argparse
 import imutils
 import cv2 # 3.4.5
 from utils.dataset import MOT16
+from utils.sanityCheck import SanityChecker
 from utils.pc_utils import pc_PerImageEvaluation
 
 import time, os, math
@@ -11,7 +12,7 @@ import logging
 from logging.config import fileConfig
 fileConfig('logging_config.ini')
 logger = logging.getLogger()
-logger.setLevel(20) # ignore less than level # Info 20 debug 10
+logger.setLevel(20) # ignore less than level # critical 50 error 40 warning 30 info 20 debug 10 NOTSET 0
 
 class TrackerPersonCounter:
     """
@@ -27,8 +28,8 @@ class TrackerPersonCounter:
         self.detect_lag = max(1, math.floor(dt * ds.frame_rate))
         self.window_size = ws
         filename =  ds.video_name + "_" + self.tracker_algo + "_pfr" + str(dt) + "_ws" + str(self.window_size) + '.csv'
-        self.path_to_output_file = os.path.join("output", "localtrack", filename)
-        logger.info("Tracker based person counter {}".format(filename))
+        self.path_to_output_file = os.path.join("output", "local_track", filename)
+        logger.debug("Tracker based person counter {}".format(filename))
 
     def str(self):
         txt = "Tracker person counter \n"
@@ -41,6 +42,7 @@ class TrackerPersonCounter:
         #TODO pick between video and directory
         self.video_stream = cv2.VideoCapture(self.ds.getVideoStream()) #TODO resize
         # self.video_stream = cv2.VideoCapture(self.path_to_video) # open video
+        logger.debug("Reading from {}".format(self.ds.path_to_annotation_file))
         self.gt_df = self.ds.parseAnnotation_OpenCV() #  GT BB in OpenCV tracker format as Pandas DataFrame
         self.result = [] # Result per BB
 
@@ -128,7 +130,7 @@ class TrackerPersonCounter:
         k = self.window_size
 
         while True:
-            #logger.debug("Frame cnt {} Capture cnt {}".format(frame_id, self.video_stream.get(1))) #cv2.CV_CAP_PROP_POS_FRAMES
+            logger.debug("Frame cnt {} Capture cnt {}".format(frame_id, self.video_stream.get(1))) #cv2.CV_CAP_PROP_POS_FRAMES
             frame = self.video_stream.read()[1]
             if frame is None: # End of video
                 break
@@ -156,15 +158,31 @@ class TrackerPersonCounter:
         res = pd.DataFrame(self.result)
         res.to_csv(self.path_to_output_file, header=False) # contains index
 
+def checkRun(tpc):
+    if os.path.isfile(tpc.path_to_output_file):
+        # print("Found: {}".format(tpc.path_to_output_file))
+        return 0
+    else:
+        print("Not found: {}".format(tpc.path_to_output_file))
+        return 1
+
+def run(tpc):
+    try:
+        tpc.setup()
+        tpc.run()
+    except Exception as ex:
+        logger.error(ex)
+        logger.error("Fail {}".format(tpc.path_to_output_file))
+
 if __name__ == '__main__' :
     # python tracker_person_counter.py -v MOT16-10 -dh ~/4Sem/MTP1/MOT16
     # 2>&1 | tee output/log.txt # Stream log to file
     parser = argparse.ArgumentParser()
     parser.add_argument("-dh", "--dataset_home", type=str, required=True, help="path to dataset home")
     parser.add_argument("-v", "--video", type=str, required=True, help="video stream. e.g: MOT16-10")
-    parser.add_argument("-t", "--tracker", type=str, default="csrt",	help="OpenCV object tracker type. Pick from kcf, csrt, mosse, boosting, mil, tld, medianflow ")
-    parser.add_argument("-dt", "--detect_speed", type=float, default="0.7",	help="detection speed (sec)")
-    parser.add_argument("-w", "--window_size", type=int, default="35",	help="Window size (#frames) of tracking")
+    parser.add_argument("-t", "--tracker", type=str, default="boosting", help="OpenCV object tracker type. Pick from kcf, csrt, mosse, boosting, mil, tld, medianflow ")
+    parser.add_argument("-dt", "--detect_speed", type=float, default="0.1",	help="detection speed (sec)")
+    parser.add_argument("-w", "--window_size", type=int, default="0",	help="Window size (#frames) of tracking")
 
     args = parser.parse_args()
     for key, value in sorted(vars(args).items()):
@@ -177,18 +195,20 @@ if __name__ == '__main__' :
     else:
         logger.error("Invalid dataset")
         exit()
-    tpc = TrackerPersonCounter(ds, args.tracker, args.detect_speed, args.window_size)
-    tpc.setup()
-    tpc.run()
+    # tpc = TrackerPersonCounter(ds, args.tracker, args.detect_speed, args.window_size)
+    # tpc.setup()
+    # tpc.run()
 
-    # for tracker in ["kcf", "csrt", "mosse", "boosting", "tld", "medianflow", "mil"]:
-    #     for detect_speed in [0, 0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 1.7, 2]:
-    #         for window_size in range(0,41,5):
-    #             try:
-    #                 tpc = TrackerPersonCounter(ds, tracker, detect_speed, window_size)
-    #                 tpc.setup()
-    #                 tpc.run()
-    #             except Exception as ex:
-    #                 logger.error(ex)
-    #                 logger.error("Fail {}".format(tpc.path_to_output_file))
+    sc = SanityChecker()
+    for tracker in ["kcf", "csrt", "mosse", "boosting", "tld", "medianflow", "mil"]:
+        # cnt = 0
+        for detect_speed in [0, 0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 1.7, 2]:
+            for window_size in range(0,41,5):
+                tpc = TrackerPersonCounter(ds, tracker, detect_speed, window_size)
+                if not os.path.isfile(tpc.path_to_output_file) or sc.checkOutput(tpc.path_to_output_file):
+                    logger.info("Running {}".format(tpc.path_to_output_file))
+                    run(tpc)
+                    # cnt += checkRun(tpc)
+                    # cnt += 1
+        # print("{} missing {}".format(tracker, cnt))
     logger.info("Done")
