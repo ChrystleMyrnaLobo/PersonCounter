@@ -23,7 +23,8 @@ sed -i '/IDF1/d' aux.txt
 sed -i -e 's/\s\+/,/g' aux.txt
 
 # Generating
-echo 'IDF1,IDP,IDR,Rcll,Prcn,GT,MT,PT,ML,FP,FN,IDs,FM,MOTA,MOTP,Filename' > $LOG
+rm $LOG
+echo 'ResourceSetting,IDF1,IDP,IDR,Rcll,Prcn,GT,MT,PT,ML,FP,FN,IDs,FM,MOTA,MOTP,Filename' > $LOG
 paste -d , aux.txt aux0.txt | column -t >> $LOG
 
 SUMMARY='../summary.csv'

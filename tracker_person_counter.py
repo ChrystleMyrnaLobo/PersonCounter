@@ -20,14 +20,22 @@ class TrackerPersonCounter:
     Tracker is initialized with bounding box from detection (or ground truth) and following frames are tracked.
     The tracker is reinitialized at a frame rate of of <detectfr>
     """
-    def __init__(self, ds, tkr, dt, ws):
+    def __init__(self, ds, tkr, dt, ws, irs):
+        self.irs = irs
         self.ds = ds
         self.tracker_algo = tkr
         # frames skipped while detection = detection speed * video frame rate
-        # Ideal case when detection speed = 0, then go to next frame
+        # Special case: When detection speed = 0 seconds, then use to next frame
         self.detect_lag = max(1, math.floor(dt * ds.frame_rate))
+        if self.irs:
+            self.detect_lag = 1 # No frames skipped, go to next frame
+            dt = 0 # detection speed is negligible
         self.window_size = ws
         filename =  ds.video_name + "_" + self.tracker_algo + "_pfr" + str(dt) + "_ws" + str(self.window_size) + '.csv'
+        if self.irs:
+            filename = "irs" + filename
+        else:
+            filename = "rcs" + filename
         self.path_to_output_file = os.path.join("output", "local_track", filename)
         logger.debug("Tracker based person counter {}".format(filename))
 
@@ -98,6 +106,8 @@ class TrackerPersonCounter:
         (success, bbs) = self.trackers.update(frame) # update tracker
         # frames skipped while tracking = tracking speed * video frame rate
         self.track_lag = math.floor( (time.time() - start) * self.ds.frame_rate )
+        if self.irs:
+            self.track_lag = 1
         self.log_output(bbs, frame_id, "track", self.track_lag)
         #self.showInference(frame, bbs, frame_id, "track")
 
@@ -125,7 +135,7 @@ class TrackerPersonCounter:
 
     def run(self):
         """ Detect on leader frame, skipping frames received during the detection; Track subsequent k (window size) frames, skipping frames received during the tracking """
-        frame_id = 1 # Received frame
+        frame_id = 1 # Received 1st frame
         next_frame_id = 1 # Next frame to process
         k = self.window_size
 
@@ -139,13 +149,10 @@ class TrackerPersonCounter:
                 frame_id += 1
                 continue
             # Detect OR track
-            if k == self.window_size: # Window completed
+            if k == self.window_size: # Window completed, perform detection
                 self.detectOnFrame(frame, frame_id)
                 next_frame_id += self.detect_lag
-                if self.detect_lag == 1:
-                    k = self.window_size
-                else:
-                    k = 0
+                k = 0 # Reset window size
                 logger.debug("Frame {} DETECT. Skipping {} frame(s) to {}".format(frame_id, self.detect_lag, next_frame_id) )
             else: # Track
                 self.trackOnFrame(frame, frame_id)
@@ -175,7 +182,7 @@ def run(tpc):
         logger.error("Fail {}".format(tpc.path_to_output_file))
 
 if __name__ == '__main__' :
-    # python tracker_person_counter.py -v MOT16-10 -dh ~/4Sem/MTP1/MOT16
+    # python tracker_person_counter.py -v MOT16-10 -dh $MOT16
     # 2>&1 | tee output/log.txt # Stream log to file
     parser = argparse.ArgumentParser()
     parser.add_argument("-dh", "--dataset_home", type=str, required=True, help="path to dataset home")
@@ -183,6 +190,7 @@ if __name__ == '__main__' :
     parser.add_argument("-t", "--tracker", type=str, default="boosting", help="OpenCV object tracker type. Pick from kcf, csrt, mosse, boosting, mil, tld, medianflow ")
     parser.add_argument("-dt", "--detect_speed", type=float, default="0.1",	help="detection speed (sec)")
     parser.add_argument("-w", "--window_size", type=int, default="0",	help="Window size (#frames) of tracking")
+    parser.add_argument("-irs","--irs", default=False, action='store_true', help="infinite resource setting")
 
     args = parser.parse_args()
     for key, value in sorted(vars(args).items()):
@@ -195,7 +203,7 @@ if __name__ == '__main__' :
     else:
         logger.error("Invalid dataset")
         exit()
-    # tpc = TrackerPersonCounter(ds, args.tracker, args.detect_speed, args.window_size)
+    # tpc = TrackerPersonCounter(ds, args.tracker, args.detect_speed, args.window_size, args.irs)
     # tpc.setup()
     # tpc.run()
 
@@ -204,11 +212,12 @@ if __name__ == '__main__' :
         # cnt = 0
         for detect_speed in [0, 0.1, 0.3, 0.5, 0.7, 1.0, 1.5, 1.7, 2]:
             for window_size in range(0,41,5):
-                tpc = TrackerPersonCounter(ds, tracker, detect_speed, window_size)
-                if not os.path.isfile(tpc.path_to_output_file) or sc.checkOutput(tpc.path_to_output_file):
-                    logger.info("Running {}".format(tpc.path_to_output_file))
-                    run(tpc)
-                    # cnt += checkRun(tpc)
-                    # cnt += 1
+                for irs_flag in [True, False]:
+                    tpc = TrackerPersonCounter(ds, tracker, detect_speed, window_size, irs_flag)
+                    if not os.path.isfile(tpc.path_to_output_file) or sc.checkOutput(tpc.path_to_output_file): # Needs to be redone?
+                        logger.info("Running {}".format(tpc.path_to_output_file))
+                        run(tpc) # comment to dry run
+                        # cnt += checkRun(tpc)
+                        # cnt += 1
         # print("{} missing {}".format(tracker, cnt))
     logger.info("Done")

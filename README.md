@@ -38,6 +38,10 @@ where
   - `tracker` : Choose from csrt, kcf, boosting, mil, tld, medianflow, mosse
   - `window_size` : window size (#frames) for tracking
   - `detect_speed`: detection speed (sec)
+  - `irs`: infinite resource setting (do not skip any frames). Default resource constraint setting  
+Note: Special cases
+  - Infinite resource setting: No frame are skipped. Use `-irs` flag which sets detection speed and tracking speed to 0
+  - No tracking: Perform only detection and data association via IoU. Use `--window_size 0`
 2. Data association
 Generate global person id from detect-track paths
 ```
@@ -67,17 +71,15 @@ MOT16
       |-- gt
          |-- gt.txt
 ```
-Code and output
+Output
 ```
 PersonCounter
 |-- Output
-   |-- ModelA_dataset
-       |-- prediction                 // Detection all classes (pickle)
-       |--  filtered_prediction       // Detections person class (pickle)
-       |-- dt_IoUx                    // dt or gt for IoU value
-          |-- Image                   // Images with BB
-          |-- result_frame.csv        // Per frame
-          |-- result_person.csv       // Per object per frame
+   |-- local_track     // csv files having detect and track
+   |-- global_track    // csv files after data association
+   |-- log             // log files of the execution
+   |-- data            // dataset structure with filtered GT, for pymotmetric evaluation
+   summary.csv         // consolidated results from simulation
 ```
 
 #### Convert frames to video
