@@ -20,7 +20,7 @@ logger.setLevel(20) # ignore less than level # Info 20 debug 10
 class IntersectOverUnion(per_image_evaluation.PerImageEvaluation):
     """Evaluate detection result of a single image.PerImageEvaluation"""
     def __init__(self, num_groundtruth_classes, matching_iou_threshold=0.5, nms_iou_threshold=0.3, nms_max_output_boxes=50, group_of_weight=0.0):
-        super(pc_PerImageEvaluation, self).__init__(num_groundtruth_classes, matching_iou_threshold, nms_iou_threshold, nms_max_output_boxes)
+        super(IntersectOverUnion, self).__init__(num_groundtruth_classes, matching_iou_threshold, nms_iou_threshold, nms_max_output_boxes)
 
     def match_frames_on_iou(self, detected_boxlist, groundtruth_boxlist):
         """
@@ -71,7 +71,7 @@ class AssociateTrack:
         self.ds = ds
         self.path_to_output_file = ipf
         self.path_to_annotated_file = opf
-        self.pie = pc_PerImageEvaluation(1) #TODO
+        self.pie = IntersectOverUnion(1) #TODO
 
         self.img_cnt = 0
         pass
@@ -182,7 +182,6 @@ class AssociateTrack:
         # Save the person_id
         header.append('global_id')
         dt.to_csv(self.path_to_annotated_file, index =False)
-        return (pc, ats, tfp, tfd, adntp)
 
     def saveInference(self, frame_id, frame, phase="skip"):
         cv2.imwrite("output/inf/Frame_{}_{}.jpg".format(frame_id, phase), frame)
@@ -259,6 +258,6 @@ if __name__ == '__main__' :
         ipf = os.path.join(args.input_dir, filename)
         opf = os.path.join(args.output_dir, filename)
         eve = AssociateTrack(ds, ipf, opf)
-        pc, ats, tfp, tfd, adntp = eve.assign_id()
+        eve.assign_id()
 
     logger.info("Done")

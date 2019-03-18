@@ -59,6 +59,7 @@ python pc_mot_evaluate.py -dh $MOT16 2>&1 | tee output/log/mot_evaluate.log
 ./parse_log.sh output/log/mot_evaluate.log
 ```
 - Setup mot metric `pip install motmetrics`
+- Read about [ID measures]
 
 ### Directory Structure
 Dataset
@@ -93,3 +94,4 @@ Convert sequence of images to video using [ffmpeg]
 [ffmpeg]: https://askubuntu.com/a/610945
 [py-motmetric]:https://github.com/cheind/py-motmetrics
 [object tracking]:(https://www.learnopencv.com/object-tracking-using-opencv-cpp-python/)
+[ID measures]:http://vision.cs.duke.edu/DukeMTMC/IDmeasures.html
